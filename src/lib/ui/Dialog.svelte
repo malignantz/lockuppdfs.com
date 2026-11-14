@@ -13,6 +13,13 @@
 		/** Close when the backdrop is clicked. Escape always closes. */
 		dismissable?: boolean;
 		width?: string;
+		/**
+		 * A steady frame for forms whose content changes as they are used: a fixed height
+		 * (up to `height`, less on short screens) with a scrolling body, so the top edge,
+		 * the title and the buttons never move or resize.
+		 */
+		steady?: boolean;
+		height?: string;
 		onclose?: () => void;
 		children: Snippet;
 		/** Footer buttons, right-aligned (stacked full-width on phones). */
@@ -26,6 +33,8 @@
 		variant = 'dialog',
 		dismissable = true,
 		width = '440px',
+		steady = false,
+		height = '680px',
 		onclose,
 		children,
 		actions
@@ -71,7 +80,9 @@
 <dialog
 	bind:this={dialog}
 	class={variant}
+	class:steady
 	style:--dialog-w={width}
+	style:--dialog-h={steady ? height : undefined}
 	aria-labelledby="dlg-title-{uid}"
 	aria-describedby={description ? `dlg-desc-${uid}` : undefined}
 	onclose={handleClose}
@@ -160,6 +171,22 @@
 		padding: var(--s-3) var(--s-5) var(--s-5);
 	}
 
+	/* Steady frame: the height does not follow the content. */
+	dialog.steady {
+		height: min(calc(100dvh - 2 * var(--s-6)), var(--dialog-h));
+	}
+
+	dialog.steady .panel {
+		height: 100%;
+	}
+
+	dialog.steady .body {
+		flex: 1;
+		position: relative;
+		/* The scrollbar coming and going does not narrow the content. */
+		scrollbar-gutter: stable;
+	}
+
 	/* Open animation */
 	dialog[open] .panel {
 		transition:
@@ -180,6 +207,10 @@
 		width: 100%;
 		max-width: 100%;
 		max-height: 92dvh;
+	}
+
+	dialog.sheet.steady {
+		height: 92dvh;
 	}
 
 	dialog.sheet .panel {
@@ -217,6 +248,10 @@
 			width: 100%;
 			max-width: 100%;
 			max-height: 92dvh;
+		}
+
+		dialog.dialog.steady {
+			height: 92dvh;
 		}
 
 		dialog.dialog .panel {
