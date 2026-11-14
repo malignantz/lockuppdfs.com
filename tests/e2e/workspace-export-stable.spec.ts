@@ -158,3 +158,23 @@ test('scanned pages: the searchable row is there from the start (desktop)', asyn
 		['Searchable off', sw('Make scanned pages searchable')]
 	]);
 });
+
+test('black and white scans: the row is there from the start; the switch stays put while its preview is made', async ({ page }) => {
+	test.setTimeout(90_000);
+	const dialog = await openExport(page, ['bilevel-scans.pdf'], 6);
+	await stillAfterOpening(page, dialog);
+	await operate(page, dialog, [['More options open', more]]);
+	const option = dialog.getByRole('switch', { name: 'Make scanned pages black and white' });
+	await mark(dialog, option);
+	await option.click();
+	// The preview takes a moment; the switch, everything above and the frame stay put when it lands.
+	await expect(dialog.getByRole('img', { name: 'The same part in black and white, like a photocopy' })).toBeVisible({ timeout: 30_000 });
+	const s = await shift(page);
+	expect(s.frame, `the dialog frame moved (${s.frameWhat})`).toBeLessThanOrEqual(1);
+	expect(s.control!, 'the switch moved').toBeLessThanOrEqual(1);
+	expect(s.above, `something above moved (${s.aboveWhat})`).toBeLessThanOrEqual(1);
+	await operate(page, dialog, [
+		['Black and white off', sw('Make scanned pages black and white')],
+		['Black and white on again', sw('Make scanned pages black and white')]
+	]);
+});
