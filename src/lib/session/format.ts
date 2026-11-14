@@ -1,5 +1,5 @@
 /**
- * The saved session record ("pick up where you left off"): what is stored, and the
+ * The record of one piece of saved work (a card on Home): what is stored, and the
  * strict reader that turns a stored value back into it. Pure TypeScript, no storage.
  *
  * One record per piece of saved work (keyed by its project id) plus one blob per
