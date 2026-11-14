@@ -4,11 +4,14 @@
 		label: string;
 		/** One line under the label. */
 		hint?: string;
+		/** Other hints this row can show. Space is kept for the tallest, so rows below do not move when the hint changes. */
+		hints?: readonly string[];
 		disabled?: boolean;
 		onchange?: (checked: boolean) => void;
 	}
 
-	let { checked = $bindable(false), label, hint, disabled = false, onchange }: Props = $props();
+	let { checked = $bindable(false), label, hint, hints = [], disabled = false, onchange }: Props = $props();
+	const ghosts = $derived(hints.filter((h) => h !== hint));
 	const uid = Math.random().toString(36).slice(2, 9);
 
 	function toggle() {
@@ -34,7 +37,12 @@
 		<!-- Clicking the label toggles too; the switch itself is the keyboard target. -->
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 		<span class="label" id="tg-{uid}" onclick={() => !disabled && toggle()}>{label}</span>
-		{#if hint}<span class="hint" id="tg-hint-{uid}">{hint}</span>{/if}
+		{#if hint || ghosts.length}
+			<span class="hints">
+				{#if hint}<span class="hint" id="tg-hint-{uid}">{hint}</span>{/if}
+				{#each ghosts as h (h)}<span class="hint ghost" aria-hidden="true">{h}</span>{/each}
+			</span>
+		{/if}
 	</span>
 </div>
 
@@ -105,5 +113,18 @@
 	.hint {
 		font-size: var(--text-caption);
 		color: var(--ink-soft);
+	}
+
+	/* The hints share one cell: the row is as tall as the tallest, only the current one shows. */
+	.hints {
+		display: grid;
+	}
+
+	.hints > .hint {
+		grid-area: 1 / 1;
+	}
+
+	.ghost {
+		visibility: hidden;
 	}
 </style>
