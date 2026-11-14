@@ -156,7 +156,8 @@ test('keyboard edges, all pages; a crop never hides a mark; reset; kept by saved
 	await expect(page.getByTestId('save-line')).toContainText('Saved on this device only.', { timeout: 10_000 });
 	await page.waitForTimeout(2500);
 	await page.reload();
-	await page.getByRole('region', { name: 'Pick up where you left off?' }).getByRole('button', { name: 'Restore' }).click();
+	// Home after the reload: the saved work's card opens it.
+	await page.locator('[data-card]').first().click();
 	await expect(options(page)).toHaveCount(6, { timeout: 30_000 });
 	const labels = await options(page).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
 	expect(labels.map((l) => /cropped/.test(l))).toEqual([true, false, false, true, true, true]);

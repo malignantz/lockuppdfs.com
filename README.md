@@ -10,6 +10,9 @@ before you can download it.
 - **One workspace** instead of one tool per page.
 - **No uploads.** A Content-Security-Policy blocks the page from contacting any other server.
 - **Verified output.** Each export passes a structure check, a page comparison and a re-open test.
+- **Your work, kept on this device.** Home shows each piece of work you have open or saved as a card;
+  tap one to go back to it, or start something new while the rest stays saved. Kept in this browser only,
+  for 7 days after its last change; passwords are never kept.
 - **Unlocks files that block printing or copying.** A file that opens without a password
   but limits printing, copying, editing or form filling exports without those limits.
   A file that needs a password to open still needs it: the app never guesses or gets around one.

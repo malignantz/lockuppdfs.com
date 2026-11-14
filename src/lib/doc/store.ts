@@ -142,7 +142,7 @@ export interface DocStore {
 	/** Drop everything including history; releases all sources. Not undoable. */
 	reset(): void;
 	/**
-	 * Replace everything with a saved document ("pick up where you left off"). History
+	 * Replace everything with a saved document (a card on Home). History
 	 * is cleared and the step is not undoable. Validated like the commands (sources,
 	 * page refs, stamps, assets, form answers); on any problem it throws and the store
 	 * is unchanged. `clean`: the saved document had been exported (isDirty false).

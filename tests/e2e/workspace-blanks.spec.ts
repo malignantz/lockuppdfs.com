@@ -188,8 +188,8 @@ test('a restored session keeps the links; moving a stamp drops its link', async 
 	await expect(page.getByTestId('save-line')).toContainText('Saved on this device only.');
 	await page.waitForTimeout(1500);
 	await page.reload();
-	const card = page.getByRole('region', { name: 'Pick up where you left off?' });
-	await card.getByRole('button', { name: 'Restore' }).click();
+	// Home after the reload: the saved work's card opens it.
+	await page.locator('[data-card]').first().click();
 	await expect(options(page)).toHaveCount(2, { timeout: 30_000 });
 	let dialog = await exportDialog(page);
 	await expect(dialog.getByText('The 2 blanks you filled become form fields, so the next person can change them.')).toBeVisible();

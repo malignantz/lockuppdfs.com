@@ -12,11 +12,13 @@
 		onfiles: (files: File[]) => void;
 		/** MIME types and extensions the picker offers. */
 		accept?: string;
-		/** Shown above the headline (the "pick up where you left off" card). */
+		/** Shown above the headline (Home's "Your work" cards). */
 		top?: Snippet;
+		/** Said under "Choose files" when there is work already (new files start new work). */
+		newWork?: string;
 	}
 
-	let { onfiles, accept = 'application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif,image/heic,image/*', top }: Props =
+	let { onfiles, accept = 'application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif,image/heic,image/*', top, newWork }: Props =
 		$props();
 
 	// Ordered by how often people need each one (the demand table in the plan). The first
@@ -93,7 +95,7 @@
 <section class="desk" class:dragging aria-labelledby="empty-title">
 	<div class="stage">
 		{#if top}{@render top()}{/if}
-		<div class="sheets" aria-hidden="true">
+		<div class="sheets" class:hidden={!!newWork} aria-hidden="true">
 			<div class="sheet s1"></div>
 			<div class="sheet s2"></div>
 			<div class="sheet s3">
@@ -114,6 +116,7 @@
 		<div class="cta">
 			<Button variant="primary" size="lg" icon="add" onclick={() => input?.click()}>Choose files</Button>
 			<span class="drop-hint">or drop them anywhere on this page</span>
+			{#if newWork}<p class="new-work">{newWork}</p>{/if}
 			<input
 				bind:this={input}
 				class="visually-hidden"
@@ -314,6 +317,17 @@
 	.drop-hint {
 		font-size: var(--text-caption);
 		color: var(--ink-soft);
+	}
+
+	.new-work {
+		flex-basis: 100%;
+		font-size: var(--text-caption);
+		color: var(--ink-soft);
+	}
+
+	/* With work on Home the cards are the picture; the illustration steps aside. */
+	.sheets.hidden {
+		display: none;
 	}
 
 	@media (hover: none) and (pointer: coarse) {

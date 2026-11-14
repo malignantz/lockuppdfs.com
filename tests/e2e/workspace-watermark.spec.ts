@@ -177,11 +177,11 @@ test('watermark: restoring saved work brings it back as it was', async ({ page }
 							r.onerror = () => resolve(false);
 							r.onsuccess = () => {
 								const db = r.result;
-								if (!db.objectStoreNames.contains('session')) return resolve(false);
-								const get = db.transaction('session').objectStore('session').get('current');
+								if (!db.objectStoreNames.contains('projects')) return (db.close(), resolve(false));
+								const get = db.transaction('projects').objectStore('projects').getAll();
 								get.onsuccess = () => {
 									db.close();
-									resolve(!!(get.result as { exportForm?: { watermark?: boolean } } | undefined)?.exportForm?.watermark);
+									resolve((get.result as { exportForm?: { watermark?: boolean } }[]).some((r) => !!r.exportForm?.watermark));
 								};
 								get.onerror = () => resolve(false);
 							};
@@ -192,8 +192,8 @@ test('watermark: restoring saved work brings it back as it was', async ({ page }
 		.toBe(true);
 	await page.waitForTimeout(700);
 	await page.reload();
-	const card = page.getByRole('region', { name: 'Pick up where you left off?' });
-	await card.getByRole('button', { name: 'Restore' }).click();
+	// Home after the reload: the saved work's card opens it.
+	await page.locator('[data-card]').first().click();
 	await expect(pagesOf(page)).toHaveCount(6, { timeout: 30_000 });
 	const again = await reopen(page);
 	// Folded by nobody, opened because something inside is on.

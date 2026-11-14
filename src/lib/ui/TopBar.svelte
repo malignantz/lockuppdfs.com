@@ -5,7 +5,16 @@
 </script>
 
 <header class="topbar">
-	<a class="wordmark" href="/" aria-label="pdf.garrettholmes.com, home">
+	<a
+		class="wordmark"
+		href="/"
+		aria-label="pdf.garrettholmes.com, home"
+		onclick={(e) => {
+			if (!topbar.home || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+			e.preventDefault();
+			topbar.home();
+		}}
+	>
 		<Mark size={26} />
 		<span class="name" aria-hidden="true"><span class="pdf">pdf</span><span class="host">.garrettholmes.com</span></span>
 	</a>
@@ -105,9 +114,14 @@
 		}
 	}
 
-	/* Phones: keep the full wordmark unless page actions need the room. */
+	/* Phones: keep the full wordmark unless page actions need the room. With work open, the
+	   Home button stands in for it (both go Home), so the row fits at 360 px. */
 	@media (max-width: 599px) {
 		.topbar:has(.actions > :global(*)) .host {
+			display: none;
+		}
+
+		.topbar:has(.actions :global(.home-btn)) .wordmark {
 			display: none;
 		}
 	}

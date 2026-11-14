@@ -1,9 +1,10 @@
 /**
- * The saved session record ("pick up where you left off"): what is stored, and the
+ * The record of one piece of saved work (a card on Home): what is stored, and the
  * strict reader that turns a stored value back into it. Pure TypeScript, no storage.
  *
- * One record per device (key "current") plus one blob per source file and asset,
- * keyed by the SHA-256 of its bytes (storage.ts). The record never holds file bytes,
+ * One record per piece of saved work (keyed by its project id) plus one blob per
+ * source file and asset, keyed by the SHA-256 of its bytes and shared between
+ * projects (storage.ts). The record never holds file bytes,
  * a password or undo history. See the plan, "Saving progress", for the migration rule:
  * any change to the shape below (or to the stamp kinds it copies) bumps SCHEMA.
  */
@@ -451,20 +452,60 @@ export function summarize(rec: Pick<SessionRecord, 'sources' | 'pages' | 'savedA
 	return { files: rec.sources.filter((s) => s.kind !== 'blank').length, pages: rec.pages.length, savedAt: rec.savedAt };
 }
 
+/** What Home's card for one piece of saved work shows. */
+export interface ProjectSummary extends SessionSummary {
+	/** The first file's name ("Blank pages" when there is none). */
+	name: string;
+	/** A file in it asks for its password again when it is opened. */
+	needsPassword: boolean;
+	/** Bytes stored for it (each file once). */
+	bytes: number;
+}
+
+/** A project's name: its first opened file's name. */
+export function projectName(sources: readonly { name: string; kind: string }[]): string {
+	return sources.find((s) => s.kind !== 'blank')?.name ?? 'Blank pages';
+}
+
+export function summarizeProject(rec: SessionRecord): ProjectSummary {
+	const sizes = new Map<string, number>();
+	for (const x of [...rec.sources, ...rec.assets]) sizes.set(x.hash, x.size);
+	return {
+		...summarize(rec),
+		name: projectName(rec.sources),
+		needsPassword: rec.sources.some((s) => s.needsPassword),
+		bytes: [...sizes.values()].reduce((a, b) => a + b, 0)
+	};
+}
+
+/**
+ * The stored files a record names, read leniently (for sweeping: a record that does
+ * not parse still keeps its files until it is deleted).
+ */
+export function hashesOf(raw: unknown): string[] {
+	if (!isObj(raw)) return [];
+	const out: string[] = [];
+	for (const list of [raw.sources, raw.assets]) {
+		if (!Array.isArray(list)) continue;
+		for (const x of list) if (isObj(x) && str(x.hash)) out.push(x.hash);
+	}
+	return out;
+}
+
 export function isExpired(savedAt: number, now: number): boolean {
 	return !(now - savedAt < EXPIRY_MS);
 }
 
 const n = (k: number, one: string) => `${k} ${one}${k === 1 ? '' : 's'}`;
 
-/** "saved just now", "saved 5 minutes ago", "saved 2 hours ago", "saved yesterday", "saved 3 days ago". */
-export function savedAgo(savedAt: number, now: number): string {
+/** "saved just now", "saved 5 minutes ago", "saved 2 hours ago", "saved yesterday", "saved 3 days ago" (or "edited …"). */
+export function savedAgo(savedAt: number, now: number, verb: 'saved' | 'edited' = 'saved'): string {
 	const s = Math.max(0, now - savedAt) / 1000;
-	if (s < 60) return 'saved just now';
-	if (s < 3600) return `saved ${n(Math.floor(s / 60), 'minute')} ago`;
-	if (s < 86400) return `saved ${n(Math.floor(s / 3600), 'hour')} ago`;
-	if (s < 2 * 86400) return 'saved yesterday';
-	return `saved ${n(Math.floor(s / 86400), 'day')} ago`;
+	if (s < 60) return `${verb} just now`;
+	if (s < 3600) return `${verb} ${n(Math.floor(s / 60), 'minute')} ago`;
+	if (s < 86400) return `${verb} ${n(Math.floor(s / 3600), 'hour')} ago`;
+	if (s < 2 * 86400) return `${verb} yesterday`;
+	return `${verb} ${n(Math.floor(s / 86400), 'day')} ago`;
 }
 
 /** "3 files, 12 pages, saved 2 hours ago". */
@@ -474,4 +515,16 @@ export function describeSummary(sum: SessionSummary, now: number): string {
 	parts.push(n(sum.pages, 'page'));
 	parts.push(savedAgo(sum.savedAt, now));
 	return parts.join(', ');
+}
+
+/** "3 files, 12 pages" (one file: just its pages). */
+export function describeSize(sum: Pick<SessionSummary, 'files' | 'pages'>): string {
+	return sum.files > 1 ? `${n(sum.files, 'file')}, ${n(sum.pages, 'page')}` : n(sum.pages, 'page');
+}
+
+/** "4.2 MB" */
+export function describeBytes(b: number): string {
+	if (b < 1024 * 1024) return `${Math.max(1, Math.round(b / 1024))} KB`;
+	const mb = b / (1024 * 1024);
+	return mb < 10 ? `${mb.toFixed(1)} MB` : `${Math.round(mb)} MB`;
 }
