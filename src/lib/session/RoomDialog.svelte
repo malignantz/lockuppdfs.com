@@ -27,7 +27,11 @@
 	});
 
 	const others = $derived(cards.filter((c) => !c.open && !c.elsewhere).sort((a, b) => a.savedAt - b.savedAt));
-	const largest = $derived(others.reduce<ProjectCard | null>((m, c) => (!m || c.bytes > m.bytes ? c : m), null));
+	/** The one clearly largest (none when sizes tie). */
+	const largest = $derived.by(() => {
+		const by = [...others].sort((a, b) => b.bytes - a.bytes);
+		return by.length > 1 && by[0].bytes > by[1].bytes ? by[0] : null;
+	});
 </script>
 
 <Dialog bind:open title="Make room for this work" description="Forget other saved work to keep what is open. It is deleted from this device at once." width="480px">
@@ -39,7 +43,7 @@
 					<span class="text">
 						<strong>{c.name}</strong>
 						<span class="meta num">
-							{describeSize(c)} · {describeBytes(c.bytes)} · {savedAgo(c.savedAt, now, 'edited')}{#if c === others[0]}&nbsp;· oldest{/if}{#if c === largest && others.length > 1}&nbsp;· largest{/if}
+							{describeSize(c)} · {describeBytes(c.bytes)} · {savedAgo(c.savedAt, now, 'edited')}{#if c === others[0] && others.length > 1}&nbsp;· oldest{/if}{#if c === largest}&nbsp;· largest{/if}
 						</span>
 					</span>
 					<Button variant="secondary" icon="trash" aria-label="Forget {c.name}" onclick={() => onforget(c)}>Forget</Button>

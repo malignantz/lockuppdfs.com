@@ -12,7 +12,8 @@
 		}
 		const u = URL.createObjectURL(blob);
 		url = u;
-		return () => URL.revokeObjectURL(u);
+		// Later, not at once: the picture may still be loading from it.
+		return () => void setTimeout(() => URL.revokeObjectURL(u), 10_000);
 	});
 </script>
 

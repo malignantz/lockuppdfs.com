@@ -265,7 +265,10 @@ export function createSession(deps: SessionDeps) {
 	let epoch = 0;
 	const known = new Map<SourceId, KnownSource>();
 	const assetBlobs = new Map<string, Blob_>();
-	/** Files this tab wrote: swept as soon as nothing uses them (others wait for the grace time). */
+	/**
+	 * Files this tab wrote, or files of work this tab deleted: swept as soon as nothing
+	 * uses them (other unused files wait for the grace time).
+	 */
 	const writtenHere = new Set<string>();
 	/** Sources the user chose to forget (in another tab); work using them is not saved again here. */
 	const forgotten = new Set<SourceId>();
@@ -652,6 +655,7 @@ export function createSession(deps: SessionDeps) {
 	}
 
 	async function deleteRow(id: string): Promise<void> {
+		for (const h of rows.get(id)?.hashes.keys() ?? []) writtenHere.add(h);
 		rows.delete(id);
 		thumbs.delete(id);
 		try {
@@ -701,13 +705,17 @@ export function createSession(deps: SessionDeps) {
 			try {
 				const rec = parseRecord(raw);
 				if (isExpired(rec.savedAt, now()) && !held.has(id) && id !== current) {
-					if (opts.tidy) await s.deleteRecord(id).catch(() => undefined);
+					if (opts.tidy) {
+						await s.deleteRecord(id).catch(() => undefined);
+						for (const h of hashesOf(raw)) writtenHere.add(h);
+					}
 					continue;
 				}
 				next.set(id, rowOf(rec));
 			} catch (e) {
 				if (!opts.tidy) continue;
 				await s.deleteRecord(id).catch(() => undefined);
+				for (const h of hashesOf(raw)) writtenHere.add(h);
 				if (e instanceof SessionFormatError) broken = true;
 			}
 		}

@@ -57,15 +57,10 @@
 <section class="work" aria-labelledby="work-title">
 	<div class="head">
 		<h2 id="work-title">Your work</h2>
-		<div class="tools">
-			<Button variant="quiet" onclick={onsettings}>Settings</Button>
-			{#if keep && cards.some((c) => c.saved)}
-				<Button variant="quiet" icon="trash" onclick={onforgetall}>Forget all my work</Button>
-			{/if}
-		</div>
+		<button type="button" class="link" onclick={onsettings}>Settings</button>
 	</div>
 	<p class="note">
-		<Icon name="shield-check" size={16} />
+		<Icon name="shield-check" size={14} />
 		{#if keep}
 			Kept on this device only, for 7 days after the last change.
 		{:else}
@@ -88,8 +83,7 @@
 					data-card={c.id}
 					data-open={c.open ? '' : undefined}
 					aria-label={name(c)}
-					aria-disabled={c.elsewhere || (busy && !c.open) ? 'true' : undefined}
-					onclick={() => !(c.elsewhere || (busy && !c.open)) && onopen(c)}
+					onclick={() => !(busy && !c.open) && onopen(c)}
 				>
 					<span class="pic">
 						<CardThumb blob={c.thumb} />
@@ -108,6 +102,11 @@
 			</li>
 		{/each}
 	</ul>
+	{#if keep && cards.some((c) => c.saved)}
+		<div class="all">
+			<Button variant="quiet" icon="trash" onclick={onforgetall}>Forget all my work</Button>
+		</div>
+	{/if}
 </section>
 
 <style>
@@ -132,26 +131,34 @@
 		color: var(--ink);
 	}
 
-	.tools {
+	.all {
 		display: flex;
-		gap: var(--s-1);
-		flex-wrap: wrap;
+		justify-content: flex-end;
+		margin-top: var(--s-2);
 		margin-right: calc(-1 * var(--s-2));
 	}
 
-	.note,
+	.note {
+		margin-top: 2px;
+		font-size: var(--text-caption);
+		line-height: 1.5;
+		color: var(--ink-soft);
+	}
+
+	.note :global(.icon) {
+		display: inline-block;
+		margin-right: 4px;
+		vertical-align: -2px;
+		color: var(--ok);
+	}
+
 	.warn {
 		display: flex;
 		align-items: center;
 		gap: 6px;
 		flex-wrap: wrap;
-		margin-top: 2px;
 		font-size: var(--text-caption);
 		color: var(--ink-soft);
-	}
-
-	.note :global(.icon) {
-		color: var(--ok);
 	}
 
 	.warn {
@@ -164,6 +171,7 @@
 	}
 
 	.link {
+		min-height: 32px;
 		padding: 2px 4px;
 		border-radius: var(--radius-control);
 		color: var(--ink);
@@ -212,10 +220,6 @@
 	.open .hit {
 		border-color: var(--accent);
 		box-shadow: inset 0 0 0 1px var(--accent);
-	}
-
-	.hit[aria-disabled='true'] {
-		cursor: default;
 	}
 
 	.elsewhere .hit {

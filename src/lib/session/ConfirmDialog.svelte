@@ -40,8 +40,8 @@
 	<p class="body">{shown?.body}</p>
 	{#snippet actions()}
 		<Button variant="quiet" onclick={() => answer(false)}>Cancel</Button>
-		<!-- A deletion starts on Cancel; anything else on its answer. -->
-		<Button variant={shown?.danger ? 'danger' : 'primary'} autofocus={!shown?.danger} onclick={() => answer(true)}>{shown?.ok}</Button>
+		<!-- Focus starts on Cancel (the Dialog's first control), so Enter never deletes by accident. -->
+		<Button variant={shown?.danger ? 'danger' : 'primary'} onclick={() => answer(true)}>{shown?.ok}</Button>
 	{/snippet}
 </Dialog>
 

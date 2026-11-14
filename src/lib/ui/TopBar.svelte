@@ -114,9 +114,14 @@
 		}
 	}
 
-	/* Phones: keep the full wordmark unless page actions need the room. */
+	/* Phones: keep the full wordmark unless page actions need the room. With work open, the
+	   Home button stands in for it (both go Home), so the row fits at 360 px. */
 	@media (max-width: 599px) {
 		.topbar:has(.actions > :global(*)) .host {
+			display: none;
+		}
+
+		.topbar:has(.actions :global(.home-btn)) .wordmark {
 			display: none;
 		}
 	}

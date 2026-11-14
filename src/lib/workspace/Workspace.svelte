@@ -922,7 +922,12 @@
 
 {#if inProject}
 	<TopBarActions>
-		<IconButton icon="home" label="Home" tooltip="bottom" class="home-btn" onclick={goHome} />
+		<!-- Home: all your work, and new work. The open work stays loaded. -->
+		{#if narrow}
+			<IconButton icon="home" label="Home" tooltip="bottom" class="home-btn" onclick={goHome} />
+		{:else}
+			<Button variant="quiet" icon="home" class="home-btn" onclick={goHome}>Home</Button>
+		{/if}
 		<div class="history">
 			<IconButton icon="undo" label={undoTip} shortcut="{mod}+Z" tooltip="bottom" disabled={!doc.state.canUndo} onclick={undo} />
 			<IconButton
