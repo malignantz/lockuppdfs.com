@@ -58,7 +58,7 @@ test('an oversized photo is offered, reduced to 300 ppi and reported', async ({ 
 	await expect(cap).toBeVisible({ timeout: 20_000 });
 	await expect(cap).toBeChecked();
 	await expect(dialog.getByText('One picture holds more detail than a printer can use. It is brought down to 300 dpi; text stays sharp.')).toBeVisible();
-	await expect(dialog.getByText('Text and drawings stay exactly as they are.')).toBeVisible();
+	await expect(dialog.getByText('Makes the file smaller. Text and drawings are untouched; oversized pictures are reduced.')).toBeVisible();
 	// Only with Compress.
 	await dialog.getByRole('switch', { name: 'Optimize' }).click();
 	await expect(cap).toHaveCount(0);
@@ -78,7 +78,7 @@ test('unticked, the photo keeps every pixel; the choice is remembered', async ({
 	const dialog = await open(page, 'print-cap.pdf', 3);
 	await switchOf(dialog).click();
 	await expect(switchOf(dialog)).not.toBeChecked();
-	await expect(dialog.getByText('Makes the file smaller. Nothing changes in how it looks.')).toBeVisible();
+	await expect(dialog.getByText('Makes the file smaller with no loss of quality.')).toBeVisible();
 	const { done, bytes } = await exportAndDownload(page, dialog);
 	await expect(done.getByText(/picture reduced/)).toHaveCount(0);
 	expect(firstImage(bytes)).toEqual(firstImage(new Uint8Array(readFileSync(corpus('print-cap.pdf')))));

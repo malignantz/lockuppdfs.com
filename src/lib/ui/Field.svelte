@@ -6,15 +6,20 @@
 		value?: string;
 		/** Short help under the input. */
 		hint?: string;
+		/** Other hints this field can show. Space is kept for the tallest, so what is below does not move when the hint comes and goes. */
+		hints?: readonly string[];
 		/** Error sentence: what happened and what to do. Sets aria-invalid. */
 		error?: string;
+		/** Keep a line for the error even when there is none, so what is below does not move when one appears. */
+		errorSpace?: boolean;
 	}
 
-	let { label, value = $bindable(''), hint, error, id, type = 'text', class: className = '', ...rest }: Props =
+	let { label, value = $bindable(''), hint, hints = [], error, errorSpace = false, id, type = 'text', class: className = '', ...rest }: Props =
 		$props();
 
 	const uid = Math.random().toString(36).slice(2, 9);
 	const inputId = $derived(id ?? `field-${uid}`);
+	const ghosts = $derived(hints.filter((h) => h !== hint));
 	const describedBy = $derived(
 		[error ? `${inputId}-err` : null, hint ? `${inputId}-hint` : null].filter(Boolean).join(' ') || undefined
 	);
@@ -30,8 +35,13 @@
 		aria-invalid={error ? 'true' : undefined}
 		aria-describedby={describedBy}
 	/>
-	{#if hint}<p class="hint" id="{inputId}-hint">{hint}</p>{/if}
-	{#if error}<p class="error" id="{inputId}-err">{error}</p>{/if}
+	{#if ghosts.length}
+		<div class="hints">
+			{#if hint}<p class="hint" id="{inputId}-hint">{hint}</p>{/if}
+			{#each ghosts as h (h)}<p class="hint ghost" aria-hidden="true">{h}</p>{/each}
+		</div>
+	{:else if hint}<p class="hint" id="{inputId}-hint">{hint}</p>{/if}
+	{#if error}<p class="error" id="{inputId}-err">{error}</p>{:else if errorSpace}<p class="error" aria-hidden="true">&nbsp;</p>{/if}
 </div>
 
 <style>
@@ -82,6 +92,19 @@
 
 	.hint {
 		color: var(--ink-soft);
+	}
+
+	/* The hints share one cell: as tall as the tallest, only the current one shows. */
+	.hints {
+		display: grid;
+	}
+
+	.hints > .hint {
+		grid-area: 1 / 1;
+	}
+
+	.ghost {
+		visibility: hidden;
 	}
 
 	.error {

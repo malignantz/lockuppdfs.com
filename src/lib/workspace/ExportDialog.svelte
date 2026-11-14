@@ -10,6 +10,7 @@
 	import Progress from '../ui/Progress.svelte';
 	import Select from '../ui/Select.svelte';
 	import Toggle from '../ui/Toggle.svelte';
+	import { focusables } from '../ui/focus';
 	import OptionPicker from './OptionPicker.svelte';
 	import WatermarkPreview from './WatermarkPreview.svelte';
 	import { exportForm } from './export-form.svelte';
@@ -148,34 +149,19 @@
 		};
 	});
 
-	// "Make scanned pages searchable": desktops only, and only when a page qualifies.
+	// Options that depend on what the pages hold, counted by the engine (cached per source):
+	// "Make scanned pages searchable" (desktops only, when a page qualifies), "Make scanned
+	// pages black and white" (when a page could qualify) and "Reduce oversized pictures"
+	// (when a page shows a picture with more pixels than a print needs).
+	// They are counted shortly after the pages change, so they are usually known before the
+	// dialog opens; an open dialog shows its form only once they are known (or after
+	// FORM_WAIT), so no row appears between controls the person is already reaching for.
 	const desktop = isDesktop();
+	const FORM_WAIT = 2000;
 	let scanned = $state(0);
-	let scanSeq = 0;
-	$effect(() => {
-		const pages = plan.pages;
-		const sources = store.state.sources;
-		const seq = ++scanSeq;
-		if (!open || !desktop) return;
-		countScanned(engine, pages, sources).then((n) => {
-			if (seq === scanSeq) scanned = n;
-		});
-	});
 	// "Make scanned pages black and white": only when a page could qualify (phones too).
 	let bilevelCount = $state(0);
 	let bilevelRefs = $state.raw<PageRef[]>([]);
-	let bilevelSeq = 0;
-	$effect(() => {
-		const pages = plan.pages;
-		const sources = store.state.sources;
-		const seq = ++bilevelSeq;
-		if (!open) return;
-		bilevelCandidates(engine, pages, sources).then((refs) => {
-			if (seq !== bilevelSeq) return;
-			bilevelRefs = refs;
-			bilevelCount = refs.length;
-		});
-	});
 	// Its preview: a before/after crop of the first page that will convert, made only when the switch is on.
 	let bilevelPreview = $state<PreviewImages | null | 'none'>(null);
 	let previewSeq = 0;
@@ -190,17 +176,52 @@
 			if (seq === previewSeq) bilevelPreview = r ?? 'none';
 		});
 	});
-	// "Reduce oversized pictures": only when a page shows a picture with more pixels than a print needs.
 	let oversized = $state(0);
-	let capSeq = 0;
+	let counted = $state(false);
+	let countSeq = 0;
+	let countNow: (() => void) | null = null;
 	$effect(() => {
 		const pages = plan.pages;
 		const sources = store.state.sources;
-		const seq = ++capSeq;
-		if (!open) return;
-		countOversized(engine, pages, sources).then((n) => {
-			if (seq === capSeq) oversized = n;
-		});
+		const seq = ++countSeq;
+		counted = false;
+		let started = false;
+		const run = () => {
+			if (started) return;
+			started = true;
+			Promise.all([
+				desktop ? countScanned(engine, pages, sources) : 0,
+				countOversized(engine, pages, sources),
+				bilevelCandidates(engine, pages, sources)
+			]).then(([s, o, refs]) => {
+				if (seq !== countSeq) return;
+				scanned = s;
+				oversized = o;
+				bilevelRefs = refs;
+				bilevelCount = refs.length;
+				counted = true;
+			});
+		};
+		countNow = run;
+		const t = setTimeout(run, 1000);
+		return () => clearTimeout(t);
+	});
+	// Opened before the delayed count ran: count now, and show the form when known.
+	let waited = $state(false);
+	let shown = $state(false);
+	const formReady = $derived(shown || counted || waited);
+	$effect(() => {
+		if (!open) {
+			shown = false;
+			waited = false;
+			return;
+		}
+		untrack(() => countNow?.());
+		const t = setTimeout(() => (waited = true), FORM_WAIT);
+		return () => clearTimeout(t);
+	});
+	$effect(() => {
+		if (open && formReady && !untrack(() => shown)) shown = true;
 	});
 	let progress = $state<ExportProgress | null>(null);
 	/** Split only: the engine's progress within the file being made (progress counts the files). */
@@ -227,10 +248,6 @@
 	$effect(() => {
 		if (open && !wasOpen) {
 			cancelled = false;
-			scanned = 0;
-			oversized = 0;
-			bilevelCount = 0;
-			bilevelRefs = [];
 			filename = defaultFilename(plan.names, mode);
 			phase = { kind: 'form' };
 			password = '';
@@ -363,23 +380,70 @@
 	});
 	/** The extension the file name field shows. */
 	const targetExt = $derived(pictures ? (plan.count === 1 ? pictureKind : 'zip') : splitting ? 'zip' : 'pdf');
+	const zipLine = (what: 'pictures' | 'parts', base: string, n: number) =>
+		what === 'pictures'
+			? `A zip of ${pictureName(base, 0, n, pictureKind)} to ${pictureName(base, n - 1, n, pictureKind)}, in page order.`
+			: `A zip of ${partName(base, 0, n)} to ${partName(base, n - 1, n)}.`;
 	const zipContents = $derived.by(() => {
 		const base = nameBase(filename);
-		if (pictures && plan.count > 1) {
-			return `A zip of ${pictureName(base, 0, plan.count, pictureKind)} to ${pictureName(base, plan.count - 1, plan.count, pictureKind)}, in page order.`;
-		}
-		if (split?.ok) {
-			const n = split.parts.length;
-			return `A zip of ${partName(base, 0, n)} to ${partName(base, n - 1, n)}.`;
-		}
+		if (pictures && plan.count > 1) return zipLine('pictures', base, plan.count);
+		if (split?.ok) return zipLine('parts', base, split.parts.length);
 		return null;
 	});
+	/** Split's zip line comes and goes from below the file name: its space is kept (as many parts as pages, the longest). */
+	const zipHints = $derived(canSplit ? [zipLine('parts', nameBase(filename), plan.count)] : []);
+
+	// Optimize's hint follows Fit under a size and Reduce oversized pictures; space is kept for the longest.
+	const OPTIMIZE_FIT = 'On while Fit under a size is on.';
+	const OPTIMIZE_CAP = 'Makes the file smaller. Text and drawings are untouched; oversized pictures are reduced.';
+	const OPTIMIZE_PLAIN = 'Makes the file smaller with no loss of quality.';
+	const optimizeHint = $derived(f.fit ? OPTIMIZE_FIT : f.printCap && oversized > 0 ? OPTIMIZE_CAP : OPTIMIZE_PLAIN);
+	const optimizeHints = $derived(oversized > 0 ? [OPTIMIZE_CAP, OPTIMIZE_PLAIN, OPTIMIZE_FIT] : [OPTIMIZE_PLAIN, OPTIMIZE_FIT]);
 
 	// "More options": the less used options, folded away. Nothing switched on is hidden: the
 	// section opens when the dialog opens with any of them on, and again when one comes into
 	// view switched on (scanned pages found, Save as back to PDF) or one needs fixing. Folded
 	// by the person while something is on, the button names what is on. Open or folded is
 	// remembered on this device.
+	/**
+	 * Keeps the form at least as tall as the part of it scrolled into view, so when a
+	 * section folds away below, the body does not scroll back and nothing in view moves.
+	 * The extra space goes away as the person scrolls up.
+	 */
+	function keepPlace(form: HTMLElement) {
+		const body = form.closest<HTMLElement>('.body');
+		if (!body) return;
+		const update = () => {
+			const pad = parseFloat(getComputedStyle(body).paddingBottom) || 0;
+			form.style.minHeight = `${Math.max(0, body.scrollTop + body.clientHeight - form.offsetTop - pad)}px`;
+		};
+		update();
+		body.addEventListener('scroll', update, { passive: true });
+		const ro = new ResizeObserver(update);
+		ro.observe(body);
+		return {
+			destroy() {
+				body.removeEventListener('scroll', update);
+				ro.disconnect();
+			}
+		};
+	}
+
+	/** The form is shown once its rows are known: focus its first control then, as the dialog would have. */
+	function focusWhenShown(form: HTMLElement, ready: boolean) {
+		let was = ready;
+		return {
+			update(now: boolean) {
+				if (now && !was) {
+					requestAnimationFrame(() => {
+						if (!form.contains(document.activeElement)) focusables(form)[0]?.focus();
+					});
+				}
+				was = now;
+			}
+		};
+	}
+
 	const MORE_KEY = 'pdf-workspace.export-more';
 	let moreOpen = $state(false);
 	const moreOn = $derived(moreOptionsOn(f, { pictures, canSplit, redacting, scanned, bilevel: bilevelCount }));
@@ -714,11 +778,20 @@
 	</details>
 {/snippet}
 
-<Dialog bind:open {title} width="480px" dismissable={phase.kind !== 'working'} {onclose}>
+<Dialog bind:open {title} width="480px" steady dismissable={phase.kind !== 'working'} {onclose}>
 	{#if phase.kind === 'form'}
-		<form id="export-form" class="form" onsubmit={run} novalidate>
+		<form
+			id="export-form"
+			class="form"
+			class:waiting={!formReady}
+			inert={!formReady}
+			onsubmit={run}
+			novalidate
+			use:keepPlace
+			use:focusWhenShown={formReady}
+		>
 			<OptionPicker label="Save as" bind:value={f.output} options={OUTPUT_CHOICES} />
-			<Field label="File name" bind:value={filename} autocomplete="off" spellcheck="false" hint={zipContents ?? undefined} />
+			<Field label="File name" bind:value={filename} autocomplete="off" spellcheck="false" hint={zipContents ?? undefined} hints={zipHints} />
 			{#if pictures}
 				<div class="section">
 					<OptionPicker label="Quality" bind:value={f.pictureQuality} options={QUALITY_CHOICES} />
@@ -752,11 +825,8 @@
 						onchange={(v) => (f.compress = v)}
 						disabled={f.fit}
 						label="Optimize"
-						hint={f.fit
-							? 'On while Fit under a size is on.'
-							: f.printCap
-								? 'Makes the file smaller. Text and drawings stay exactly as they are.'
-								: 'Makes the file smaller. Nothing changes in how it looks.'}
+						hint={optimizeHint}
+						hints={optimizeHints}
 					/>
 					{#if oversized > 0 && (f.compress || f.fit)}
 						<Toggle bind:checked={f.printCap} label={PRINT_CAP_LABEL} hint={printCapHint(oversized)} />
@@ -788,6 +858,7 @@
 								bind:value={password}
 								autocomplete="new-password"
 								error={pwError ?? undefined}
+								errorSpace
 								oninput={() => (touched = touched || password.length > 0)}
 								onblur={() => (touched = true)}
 							/>
@@ -797,6 +868,7 @@
 								bind:value={confirm}
 								autocomplete="new-password"
 								error={confirmError ?? undefined}
+								errorSpace
 								onblur={() => (touched = true)}
 							/>
 							<label class="show">
@@ -963,7 +1035,15 @@
 								{#if f.bilevel}
 									<div class="bw-preview" data-testid="bilevel-preview" aria-live="polite">
 										{#if bilevelPreview === null}
-											<p class="caption">Making a preview…</p>
+											<!-- Boxes the size of the usual preview, so it lands without pushing anything. -->
+											<figure>
+												<span class="bw-slot caption">Making a preview…</span>
+												<figcaption class="caption">Before</figcaption>
+											</figure>
+											<figure aria-hidden="true">
+												<span class="bw-slot"></span>
+												<figcaption class="caption">After (like a photocopy)</figcaption>
+											</figure>
 										{:else if bilevelPreview === 'none'}
 											<p class="caption">The first scanned pages have colour, photos or faint marks, so they would be left as they are. Other pages are checked when you export.</p>
 										{:else}
@@ -1065,7 +1145,8 @@
 				icon="download"
 				type="submit"
 				form="export-form"
-				disabled={plan.count === 0 || !!numProblem || !!wmProblem || (pictures ? !!picturesProblem : !fitOk || !!splitProblem)}>Export</Button
+				disabled={!formReady ||
+					plan.count === 0 || !!numProblem || !!wmProblem || (pictures ? !!picturesProblem : !fitOk || !!splitProblem)}>Export</Button
 			>
 		{:else if phase.kind === 'working'}
 			{#if abort}<Button variant="quiet" onclick={() => abort?.abort()}>Cancel</Button>{/if}
@@ -1089,6 +1170,15 @@
 	.working {
 		display: grid;
 		gap: var(--s-4);
+	}
+
+	.form {
+		align-content: start;
+	}
+
+	/* Until the rows that depend on the pages are known (a moment, at most FORM_WAIT). */
+	.form.waiting {
+		visibility: hidden;
 	}
 
 	.toggles {
@@ -1277,6 +1367,18 @@
 		max-width: 100%;
 	}
 
+	/* The preview's usual size (Engine.bilevelPreview: a 300 x 150 crop), held while it is made. */
+	.bw-slot {
+		display: grid;
+		place-items: center;
+		width: 300px;
+		max-width: 100%;
+		aspect-ratio: 300 / 150;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-control);
+		background: var(--hover);
+	}
+
 	.bw-preview img {
 		display: block;
 		max-width: 100%;
@@ -1287,6 +1389,9 @@
 
 	.working {
 		padding: var(--s-3) 0;
+		/* Centred in the steady frame rather than leaving it empty below. */
+		min-height: 100%;
+		align-content: center;
 	}
 
 	.working .step,
