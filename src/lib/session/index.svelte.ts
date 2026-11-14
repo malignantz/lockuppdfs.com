@@ -1,6 +1,6 @@
 /**
- * The app's one saved-session controller (session.ts), wired to the real store,
- * engine, IndexedDB and Web Locks, plus a reactive view for components.
+ * The app's one saved-work controller (session.ts), wired to the real store,
+ * engine, renderer (thumbnails), IndexedDB and Web Locks, plus a reactive view for components.
  */
 import { createSubscriber } from 'svelte/reactivity';
 import { version } from '$app/env';
@@ -8,7 +8,8 @@ import { getApp } from '../app';
 import { toasts } from '../ui/toasts.svelte';
 import { exportForm } from '../workspace/export-form.svelte';
 import { cleanExportForm } from './format';
-import { claimOwnership } from './owner';
+import { heldElsewhere, lockProject } from './owner';
+import { makeThumbnail } from './thumbnail';
 import { createSession, type Session } from './session';
 import { openIdbStorage } from './storage';
 
@@ -51,7 +52,9 @@ export function getSession(): Session {
 		store: app.store,
 		engine: app.engine,
 		openStorage: openIdbStorage,
-		claim: claimOwnership,
+		lock: lockProject,
+		heldElsewhere: () => heldElsewhere(s.current),
+		thumbnail: (st) => makeThumbnail(app.renderer, st),
 		prefs: { get: readKeep, set: writeKeep },
 		exportForm: {
 			get: () => cleanExportForm($state.snapshot(exportForm)),
@@ -86,11 +89,7 @@ export function useSession(s: Session) {
 			subscribe();
 			return s.line;
 		},
-		get offer() {
-			subscribe();
-			return s.offer;
-		},
-		get restoring() {
+			get restoring() {
 			subscribe();
 			return s.restoring;
 		},
@@ -101,6 +100,18 @@ export function useSession(s: Session) {
 		get saving() {
 			subscribe();
 			return s.saving;
+		},
+		get cards() {
+			subscribe();
+			return s.cards;
+		},
+		get opening() {
+			subscribe();
+			return s.opening;
+		},
+		get current() {
+			subscribe();
+			return s.current;
 		}
 	};
 }

@@ -96,6 +96,7 @@ export const icons = {
 	'zoom-out': ['M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13z', 'M15.3 15.3L20 20', 'M8 10.5h5'],
 	'chevron-left': ['M14.5 6l-6 6 6 6'],
 	'chevron-right': ['M9.5 6l6 6-6 6'],
+	home: ['M4 10.5L12 4l8 6.5', 'M6 9v11h12V9', 'M10 20v-5.5h4V20'],
 	upload: ['M12 16V4', 'M7 8.5l5-5 5 5', 'M5 20h14'],
 	/** Four arrows pointing in: "make it smaller". */
 	shrink: ['M4 4l6 6', 'M10 5.5V10H5.5', 'M20 4l-6 6', 'M14 5.5V10h4.5', 'M4 20l6-6', 'M10 18.5V14H5.5', 'M20 20l-6-6', 'M14 18.5V14h4.5'],

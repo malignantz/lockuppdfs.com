@@ -3,12 +3,12 @@
 	import Dialog from '../ui/Dialog.svelte';
 	import Toggle from '../ui/Toggle.svelte';
 
-	/** "Your work on this device": the switch, Forget my work, and what is saved. */
+	/** "Your work on this device": the switch, Forget all my work, and what is saved. */
 	interface Props {
 		open: boolean;
 		keep: boolean;
 		line: string;
-		/** Something is open or saved that Forget would remove. */
+		/** Something is saved that Forget would remove. */
 		canForget: boolean;
 		onkeep: (on: boolean) => void;
 		onforget: () => void;
@@ -25,7 +25,7 @@
 <Dialog
 	bind:open
 	title="Your work on this device"
-	description="Open files and changes are kept in this browser, so you can pick up where you left off. They are never sent anywhere."
+	description="Your work is kept in this browser, so you can come back to it from Home. It is never sent anywhere."
 	width="460px"
 >
 	<div class="body">
@@ -33,12 +33,12 @@
 		<Toggle
 			bind:checked
 			label="Keep my work on this device"
-			hint="Saved work is deleted 7 days after the last change. Turning this off deletes it now."
+			hint="Each piece of work is deleted 7 days after its last change. Turning this off deletes all of it now; what is open stays until you close this tab."
 			onchange={(on) => onkeep(on)}
 		/>
 		<div class="forget">
-			<Button variant="secondary" icon="trash" disabled={!canForget} onclick={onforget}>Forget my work</Button>
-			<p class="caption">Deletes the saved files and changes from this device now. What is open here stays until you close the tab.</p>
+			<Button variant="secondary" icon="trash" disabled={!canForget} onclick={onforget}>Forget all my work</Button>
+			<p class="caption">Deletes all saved work from this device now, including the work that is open. To forget one piece of work, use its card on Home.</p>
 		</div>
 		<p class="caption">Saved signatures are kept apart from this. Delete them in the signature tool.</p>
 	</div>

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, tick, untrack, type Component } from 'svelte';
 	import { version } from '$app/env';
+	import { pushState, replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 	import { describeError } from '../ui/error-report';
 	import type { PageId } from '../core/types';
 	import { getApp } from '../app';
@@ -19,11 +21,16 @@
 	import PageGrid from './PageGrid.svelte';
 	import PasswordDialog from './PasswordDialog.svelte';
 	import ShortcutSheet from './ShortcutSheet.svelte';
-	import RestoreCard from '../session/RestoreCard.svelte';
+	import ConfirmDialog, { type ConfirmAsk } from '../session/ConfirmDialog.svelte';
+	import RoomDialog from '../session/RoomDialog.svelte';
 	import SaveDialog from '../session/SaveDialog.svelte';
 	import SaveLine from '../session/SaveLine.svelte';
+	import YourWork from '../session/YourWork.svelte';
+	import { describeSize } from '../session/format';
 	import { getSession, useSession } from '../session/index.svelte';
-	import { BROKEN_MESSAGE } from '../session/session';
+	import { BROKEN_MESSAGE, type ProjectCard } from '../session/session';
+	import Spinner from '../ui/Spinner.svelte';
+	import { topbar } from '../ui/topbar.svelte';
 	import { exportForm, startNewJob } from './export-form.svelte';
 	import { play, snapshot } from './flip';
 	import { createIntake, type PasswordAsk } from './intake.svelte';
@@ -70,8 +77,28 @@
 	const count = $derived(pages.length);
 	const selCount = $derived(selection.size);
 	const hasPages = $derived(count > 0);
-	const showDock = $derived(hasPages && narrow);
-	const showFloat = $derived(hasPages && !narrow && selCount > 0);
+
+	/**
+	 * Home or the open work. The work is a history entry above Home (`page.state.view`),
+	 * so Back goes Home and Forward comes back. Home shows whenever nothing is loaded.
+	 */
+	let view = $state<'home' | 'project'>('home');
+	/** This page load pushed the work's history entry (so Home can go back to its own entry). */
+	let pushedProject = false;
+	/** Enter the work as soon as the files being opened from Home show their first pages. */
+	let enterOnPages = false;
+	/** Where the open work was scrolled to when Home was shown. */
+	let scrollMemo: { pages: unknown; y: number; focus: PageId | null } | null = null;
+	const inProject = $derived(view === 'project' && hasPages);
+
+	let roomOpen = $state(false);
+	let confirmAsk = $state<ConfirmAsk | null>(null);
+	let confirmResolve: ((yes: boolean) => void) | null = null;
+
+	const showDock = $derived(inProject && narrow);
+	const showFloat = $derived(inProject && !narrow && selCount > 0);
+	const openingName = $derived(saved.opening ? (saved.cards.find((c) => c.id === saved.opening)?.name ?? '') : '');
+	const canMakeRoom = $derived(saved.state === 'full' || saved.state === 'limit');
 
 	const intake = createIntake({
 		store,
@@ -80,6 +107,10 @@
 		askPassword,
 		notify: (m) => toasts.show({ message: m.message, tone: m.tone }),
 		onFirstPages: async (ids) => {
+			if (enterOnPages) {
+				enterOnPages = false;
+				void enterProject();
+			}
 			await tick();
 			if (store.state.pages.length > ids.length) grid?.scrollToPage(ids[0]);
 		},
@@ -182,8 +213,19 @@
 		sync();
 		mq.addEventListener('change', sync);
 		mod = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? 'Cmd' : 'Ctrl';
-		// One small read: is there saved work to offer? Never restores by itself.
+		// A reload lands on Home: nothing is loaded, whatever the history entry says.
+		if (page.state.view === 'project') {
+			try {
+				replaceState('', {});
+			} catch {
+				// The router is not ready; Home shows anyway.
+			}
+		}
+		// One small read: what saved work is there to show? Never opens any by itself.
 		void session.init();
+		// Another tab may have saved, opened or closed work meanwhile.
+		const look = () => document.visibilityState === 'visible' && !inProject && void session.refresh();
+		document.addEventListener('visibilitychange', look);
 		const hide = () => session.pageHide();
 		addEventListener('pagehide', hide);
 		const vis = () => document.visibilityState === 'hidden' && session.pageHide();
@@ -192,6 +234,28 @@
 			mq.removeEventListener('change', sync);
 			removeEventListener('pagehide', hide);
 			document.removeEventListener('visibilitychange', vis);
+			document.removeEventListener('visibilitychange', look);
+		};
+	});
+
+	// Back and Forward move between Home and the open work.
+	$effect(() => {
+		const v = page.state.view === 'project' ? 'project' : 'home';
+		untrack(() => {
+			if (v === view) return;
+			if (v === 'home') showHome();
+			else if (store.state.pages.length) void enterProject({ push: false });
+			else replaceState('', {});
+		});
+	});
+
+	// The wordmark goes Home while work is open (it keeps the work loaded).
+	$effect(() => {
+		if (!inProject) return;
+		const go = () => goHome();
+		topbar.home = go;
+		return () => {
+			if (topbar.home === go) topbar.home = null;
 		};
 	});
 
@@ -206,30 +270,197 @@
 		untrack(() => session.touch());
 	});
 
-	// ------------------------------------------------------------ saved work
+	// ------------------------------------------------------------ Home and the open work
 
-	async function restoreSaved() {
-		if (intake.busy || store.state.pages.length) return;
-		const r = await session.restore(askPassword);
-		if (r.ok) {
-			const n = store.state.pages.length;
-			const msg = r.skipped
-				? `Restored ${plural(n, 'page')}. ${plural(r.skipped, 'file')} with a password ${r.skipped === 1 ? 'was' : 'were'} left out.`
-				: `Restored ${plural(n, 'page')}.`;
-			toasts.show({ message: msg, tone: 'ok' });
-			say(msg);
-		} else if (r.reason === 'broken') {
-			toasts.show({ message: BROKEN_MESSAGE, tone: 'error' });
-		} else if (r.reason === 'skipped') {
-			toasts.show({ message: 'Nothing was restored. Your saved work is still here.' });
-		} else if (!saved.offer) {
-			toasts.show({ message: 'The saved work is no longer here.' });
+	/** Ask one question (ConfirmDialog). */
+	function confirm(ask: ConfirmAsk): Promise<boolean> {
+		confirmResolve?.(false);
+		return new Promise((resolve) => {
+			confirmAsk = ask;
+			confirmResolve = resolve;
+		});
+	}
+
+	function answerConfirm(yes: boolean) {
+		const r = confirmResolve;
+		confirmResolve = null;
+		confirmAsk = null;
+		r?.(yes);
+	}
+
+	/** Close what belongs to the open work's screen (the page editor, its dialogs). */
+	function closeOverlays() {
+		if (editorId) {
+			if (store.gestureActive) store.commitGesture();
+			editorId = null;
+		}
+		exportOpen = false;
+		shortcutsOpen = false;
+		selectionMode = false;
+	}
+
+	/** Show the open work (its history entry above Home, unless Back/Forward brought it). */
+	async function enterProject(opts: { push?: boolean } = {}) {
+		const memo = scrollMemo;
+		scrollMemo = null;
+		const returning = !!memo && memo.pages === store.state.pages;
+		view = 'project';
+		if (opts.push !== false && page.state.view !== 'project') {
+			pushState('', { view: 'project' });
+			pushedProject = true;
+		}
+		await tick();
+		scrollTo({ top: returning ? memo!.y : 0, behavior: 'instant' });
+		const target = (returning && memo!.focus && store.state.pages.find((p) => p.id === memo!.focus)?.id) || store.state.pages[0]?.id;
+		if (target) {
+			focusedId = target;
+			grid?.focusPage(target, false);
 		}
 	}
 
-	async function discardSaved() {
-		await session.discard();
-		toasts.show({ message: 'Saved work deleted.' });
+	/** Home, from Back: the open work stays loaded (and saved, if saving is on). */
+	function showHome() {
+		if (view === 'home') return;
+		closeOverlays();
+		scrollMemo = { pages: store.state.pages, y: scrollY, focus: focusedId };
+		void session.flush();
+		void session.thumbNow();
+		void session.refresh();
+		view = 'home';
+		void tick().then(() => {
+			scrollTo({ top: 0, behavior: 'instant' });
+			(document.querySelector<HTMLElement>('[data-card][data-open]') ?? document.getElementById('main'))?.focus();
+		});
+	}
+
+	/** The Home button and the wordmark. */
+	function goHome() {
+		if (view === 'home') return;
+		showHome();
+		if (page.state.view === 'project') {
+			if (pushedProject) {
+				pushedProject = false;
+				history.back();
+			} else replaceState('', {});
+		}
+	}
+
+	/**
+	 * Unload the open work before other work comes in. Saved work is saved first and
+	 * stays a card; work that is not saved is lost, so that asks first.
+	 */
+	async function closeOpenWork(why: 'new' | 'open'): Promise<boolean> {
+		if (!store.state.pages.length) {
+			// Emptied (Start over): its saved copy goes now, with its undo window.
+			if (session.current) session.close();
+			return true;
+		}
+		await session.flush();
+		if (!session.safeToLeave) {
+			const ok = await confirm(
+				why === 'new'
+					? {
+							title: 'Start new work?',
+							body: 'The work that is open is not saved on this device. Starting new work closes it, and its pages and changes will be gone.',
+							ok: 'Start new work',
+							danger: true
+						}
+					: {
+							title: 'Open other work?',
+							body: 'The work that is open is not saved on this device. Opening other work closes it, and its pages and changes will be gone.',
+							ok: 'Open other work',
+							danger: true
+						}
+			);
+			if (!ok) return false;
+		}
+		closeOverlays();
+		scrollMemo = null;
+		focusedId = null;
+		session.close();
+		return true;
+	}
+
+	/** A card on Home. */
+	async function openCard(card: ProjectCard) {
+		if (saved.restoring || intake.busy) return;
+		if (card.open) {
+			void enterProject();
+			return;
+		}
+		if (card.elsewhere) {
+			toasts.show({ message: 'That work is open in another tab. Close it there to open it here.' });
+			return;
+		}
+		if (!(await closeOpenWork('open'))) return;
+		say(`Opening ${card.name}`);
+		const r = await session.open(card.id, askPassword);
+		if (r.ok) {
+			const n = store.state.pages.length;
+			if (r.skipped) {
+				const msg = `Opened ${plural(n, 'page')}. ${plural(r.skipped, 'file')} with a password ${r.skipped === 1 ? 'was' : 'were'} left out.`;
+				toasts.show({ message: msg, tone: 'ok' });
+				say(msg);
+			} else say(`Opened ${card.name}, ${plural(n, 'page')}`);
+			await enterProject();
+		} else if (r.reason === 'broken') {
+			toasts.show({ message: BROKEN_MESSAGE, tone: 'error' });
+		} else if (r.reason === 'skipped') {
+			toasts.show({ message: 'Nothing was opened. That work is still saved.' });
+		} else if (r.reason === 'elsewhere') {
+			toasts.show({ message: 'That work is open in another tab. Close it there to open it here.' });
+		} else {
+			toasts.show({ message: 'That work is no longer saved here.' });
+			void session.refresh();
+		}
+	}
+
+	async function forgetCard(card: ProjectCard) {
+		const ok = await confirm({
+			title: 'Forget this work?',
+			body: `“${card.name}” (${describeSize(card)}) will be deleted from this device${card.open ? ' and closed' : ''}. This cannot be undone.`,
+			ok: 'Forget',
+			danger: true
+		});
+		if (!ok) return;
+		if (card.open) closeOverlays();
+		const done = await session.forgetProject(card.id);
+		toasts.show({ message: done ? `Forgot “${card.name}”.` : 'That work is open in another tab, so it was kept.' });
+		if (roomOpen && canMakeRoom) void session.retry();
+		await tick();
+		(document.querySelector<HTMLElement>('[data-card]') ?? document.getElementById('main'))?.focus();
+	}
+
+	async function forgetAll() {
+		saveOpen = false;
+		const ok = await confirm({
+			title: 'Forget all your work?',
+			body: 'All saved work is deleted from this device now, including the work that is open. This cannot be undone.',
+			ok: 'Forget all',
+			danger: true
+		});
+		if (!ok) return;
+		closeOverlays();
+		const done = await session.forget();
+		showHome();
+		if (page.state.view === 'project') replaceState('', {});
+		toasts.show(
+			done
+				? { message: 'Your work was removed from this device.' }
+				: { message: 'Could not remove saved work. Clear this site’s data in your browser settings.', tone: 'error' }
+		);
+	}
+
+	/** "Make room": forget one piece of other work, then try to keep the open work again. */
+	async function makeRoomFor(card: ProjectCard) {
+		await session.forgetProject(card.id);
+		toasts.show({ message: `Forgot “${card.name}”.` });
+		await session.retry();
+		await session.flush();
+		if (saved.state === 'saved') {
+			roomOpen = false;
+			toasts.show({ message: 'Your work is saved on this device again.', tone: 'ok' });
+		}
 	}
 
 	async function setKeep(on: boolean) {
@@ -237,16 +468,16 @@
 		toasts.show({ message: on ? 'Your work will be kept on this device.' : 'Your work is no longer kept on this device. What was saved is deleted.' });
 	}
 
-	async function forgetWork() {
-		const ok = await session.forget();
-		toasts.show(
-			ok
-				? { message: 'Your work was removed from this device.' }
-				: { message: 'Could not remove saved work. Clear this site’s data in your browser settings.', tone: 'error' }
-		);
-	}
-
 	// ------------------------------------------------------------ commands
+
+	/** Files from Home start new work; the work that was open stays saved as a card. */
+	async function homeFiles(files: File[]) {
+		if (!files.length || intake.busy || saved.restoring) return;
+		if (!(await closeOpenWork('new'))) return;
+		addFiles(files);
+		enterOnPages = true;
+		view = 'project';
+	}
 
 	function addFiles(files: File[]) {
 		// Files into an empty workspace start a new job: the watermark switch goes back to off.
@@ -550,7 +781,7 @@
 			pickFiles();
 			return;
 		}
-		if (!hasPages) return;
+		if (!inProject) return;
 		if (modKey && k === 'z') {
 			e.preventDefault();
 			if (e.shiftKey) redo();
@@ -597,7 +828,8 @@
 		}
 		if (!files.length) return;
 		e.preventDefault();
-		addFiles(files);
+		if (inProject) addFiles(files);
+		else void homeFiles(files);
 	}
 
 	function onbeforeunload(e: BeforeUnloadEvent) {
@@ -608,32 +840,32 @@
 		}
 	}
 
-	// Drop files anywhere while pages are showing (EmptyDesk handles the empty state).
+	// Drop files anywhere while the open work is showing (EmptyDesk handles Home).
 	function hasFiles(e: DragEvent) {
 		return !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
 	}
 
 	function ondragenter(e: DragEvent) {
-		if (!hasPages || !hasFiles(e) || blocked()) return;
+		if (!inProject || !hasFiles(e) || blocked()) return;
 		e.preventDefault();
 		dragDepth++;
 		fileDrag = true;
 	}
 
 	function ondragover(e: DragEvent) {
-		if (!hasPages || !hasFiles(e) || blocked()) return;
+		if (!inProject || !hasFiles(e) || blocked()) return;
 		e.preventDefault();
 		if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
 	}
 
 	function ondragleave(e: DragEvent) {
-		if (!hasPages || !hasFiles(e)) return;
+		if (!inProject || !hasFiles(e)) return;
 		dragDepth = Math.max(0, dragDepth - 1);
 		if (dragDepth === 0) fileDrag = false;
 	}
 
 	function ondrop(e: DragEvent) {
-		if (!hasPages || !hasFiles(e)) return;
+		if (!inProject || !hasFiles(e)) return;
 		e.preventDefault();
 		dragDepth = 0;
 		fileDrag = false;
@@ -685,11 +917,12 @@
 <svelte:window {onkeydown} {onpaste} {onbeforeunload} {ondragenter} {ondragover} {ondragleave} {ondrop} />
 
 <svelte:head>
-	<title>{hasPages ? `${plural(count, 'page')} · PDF Workspace` : 'PDF Workspace · pdf.garrettholmes.com'}</title>
+	<title>{inProject ? `${plural(count, 'page')} · PDF Workspace` : 'PDF Workspace · pdf.garrettholmes.com'}</title>
 </svelte:head>
 
-{#if hasPages}
+{#if inProject}
 	<TopBarActions>
+		<IconButton icon="home" label="Home" tooltip="bottom" class="home-btn" onclick={goHome} />
 		<div class="history">
 			<IconButton icon="undo" label={undoTip} shortcut="{mod}+Z" tooltip="bottom" disabled={!doc.state.canUndo} onclick={undo} />
 			<IconButton
@@ -710,8 +943,8 @@
 	</TopBarActions>
 {/if}
 
-{#if hasPages}
-	<!-- The empty state has its own picker; this one is for "Add files". -->
+{#if inProject}
+	<!-- Home has its own picker; this one is for "Add files". -->
 	<input
 		bind:this={fileInput}
 		class="visually-hidden"
@@ -725,8 +958,8 @@
 {/if}
 
 <div class="workspace" inert={!!editorId}>
-	{#if hasPages}
-		<SaveLine saved={saved.saving} line={saved.line} onopen={() => (saveOpen = true)} />
+	{#if inProject}
+		<SaveLine saved={saved.saving} line={saved.line} onopen={() => (saveOpen = true)} onmakeroom={canMakeRoom ? () => (roomOpen = true) : undefined} />
 		<PageGrid
 			bind:this={grid}
 			{pages}
@@ -751,10 +984,30 @@
 			announce={say}
 		/>
 	{:else}
-		<EmptyDesk onfiles={addFiles} accept={ACCEPT}>
+		<EmptyDesk
+			onfiles={(files) => void homeFiles(files)}
+			accept={ACCEPT}
+			newWork={saved.cards.length
+				? hasPages && !saved.cards[0].saved
+					? 'This starts new work. The work that is open is not saved, so it will be closed.'
+					: 'This starts new work. Your other work stays saved.'
+				: undefined}
+		>
 			{#snippet top()}
-				{#if saved.offer}
-					<RestoreCard offer={saved.offer} restoring={saved.restoring} onrestore={restoreSaved} ondiscard={discardSaved} />
+				{#if saved.cards.length}
+					<YourWork
+						cards={saved.cards}
+						opening={saved.opening}
+						busy={intake.busy || saved.restoring}
+						keep={saved.keep}
+						notSaved={hasPages && saved.cards[0]?.open && !saved.cards[0].saved && saved.keep ? saved.line : null}
+						{canMakeRoom}
+						onopen={(c) => void openCard(c)}
+						onforget={(c) => void forgetCard(c)}
+						onforgetall={() => void forgetAll()}
+						onsettings={() => (saveOpen = true)}
+						onmakeroom={() => (roomOpen = true)}
+					/>
 				{/if}
 			{/snippet}
 		</EmptyDesk>
@@ -793,7 +1046,7 @@
 		</ActionBar>
 	{/if}
 
-	{#if hasPages && !narrow}
+	{#if inProject && !narrow}
 		<div class="size" class:lifted={showFloat}>
 			<Slider
 				label="Thumbnail size"
@@ -848,8 +1101,16 @@
 	line={saved.line}
 	canForget={saved.state !== 'off'}
 	onkeep={(on) => void setKeep(on)}
-	onforget={() => void forgetWork()}
+	onforget={() => void forgetAll()}
 />
+<ConfirmDialog ask={confirmAsk} onanswer={answerConfirm} />
+<RoomDialog bind:open={roomOpen} line={saved.line} cards={saved.cards} onforget={(c) => void makeRoomFor(c)} />
+
+{#if saved.opening}
+	<div class="switching" role="status" aria-live="polite">
+		<p><Spinner size={22} /><span>Opening “{openingName}”…</span></p>
+	</div>
+{/if}
 
 <div class="visually-hidden" aria-live="polite" aria-atomic="true">{live}</div>
 
@@ -904,6 +1165,33 @@
 		.size.lifted {
 			bottom: calc(var(--s-5) + 64px + var(--safe-bottom));
 		}
+	}
+
+	.switching {
+		position: fixed;
+		inset: 0;
+		z-index: 70;
+		display: grid;
+		place-items: center;
+		background: color-mix(in srgb, var(--desk) 55%, transparent);
+	}
+
+	.switching p {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--s-3);
+		max-width: calc(100vw - 2 * var(--s-4));
+		padding: var(--s-3) var(--s-5);
+		border-radius: var(--radius-sheet);
+		background: var(--surface);
+		box-shadow: var(--shadow-float);
+		font-weight: 550;
+	}
+
+	.switching span {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
 	}
 
 	.drop-veil {

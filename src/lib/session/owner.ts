@@ -1,92 +1,49 @@
 /**
- * Which tab owns the saved session. Only one tab may write it; a second tab works
- * normally but does not save.
+ * Which tab has a piece of saved work open. A tab holds the Web Lock
+ * "pdf-workspace-project:<id>" while it has that project open; another tab sees the
+ * lock (`heldElsewhere`) and shows the card as open in another tab instead of opening it.
  *
- * - Web Locks (`navigator.locks`): the first tab holds the lock "pdf-workspace-session"
- *   until it closes. Another tab queues for it and is told when it is free.
- * - Fallback (no Web Locks): a BroadcastChannel roll call; a tab that hears another
- *   one answer is not the owner. Two tabs that start in the same instant can both
- *   think they own it; the record's writer check (session.ts) then stops the second
- *   one before it overwrites anything.
+ * Without Web Locks every project counts as free; the record's writer check
+ * (session.ts) then stops a second tab before it overwrites anything.
  */
+import type { ProjectLock } from './session';
 
-export interface Ownership {
-	owner: boolean;
-	/** When not the owner: resolves when the owning tab has gone (Web Locks only). */
-	freed?: Promise<void>;
-	/** Give up ownership (or a queued request). */
-	release(): void;
-}
+const PREFIX = 'pdf-workspace-project:';
 
-const LOCK = 'pdf-workspace-session';
-const CHANNEL = 'pdf-workspace-session';
+const locks = () => (globalThis.navigator as (Navigator & { locks?: LockManager }) | undefined)?.locks;
 
-export async function claimOwnership(): Promise<Ownership> {
-	const locks = (navigator as Navigator & { locks?: LockManager }).locks;
-	if (locks) {
-		try {
-			return await viaLocks(locks);
-		} catch {
-			// Fall through to the roll call.
-		}
-	}
-	return viaChannel();
-}
-
-function viaLocks(locks: LockManager): Promise<Ownership> {
-	return new Promise<Ownership>((resolve, reject) => {
-		let releaseHeld: () => void = () => undefined;
-		const held = new Promise<void>((r) => (releaseHeld = r));
-		locks
-			.request(LOCK, { ifAvailable: true }, (lock) => {
-				if (!lock) {
-					// Someone else has it: queue, and say when it is free.
-					const abort = new AbortController();
-					let releaseQueued: () => void = () => undefined;
-					const freed = new Promise<void>((resolveFreed) => {
-						locks
-							.request(LOCK, { signal: abort.signal }, () => {
-								resolveFreed();
-								return new Promise<void>((r) => (releaseQueued = r));
-							})
-							.catch(() => undefined);
-					});
-					resolve({
-						owner: false,
-						freed,
-						release: () => {
-							abort.abort();
-							releaseQueued();
-						}
-					});
-					return;
-				}
-				resolve({ owner: true, release: () => releaseHeld() });
-				return held;
-			})
-			.catch(reject);
-	});
-}
-
-function viaChannel(): Promise<Ownership> {
-	if (typeof BroadcastChannel === 'undefined') return Promise.resolve({ owner: true, release: () => undefined });
-	return new Promise((resolve) => {
-		const ch = new BroadcastChannel(CHANNEL);
-		let other = false;
-		ch.onmessage = (e) => {
-			if (e.data === 'here') other = true;
-		};
-		ch.postMessage('who');
-		setTimeout(() => {
-			if (other) {
-				ch.close();
-				resolve({ owner: false, release: () => undefined });
+/** Hold project `id` for this tab until `release`; null when another tab holds it. */
+export function lockProject(id: string): Promise<ProjectLock | null> {
+	const lm = locks();
+	if (!lm) return Promise.resolve({ release: () => undefined });
+	return new Promise<ProjectLock | null>((resolve) => {
+		let release: () => void = () => undefined;
+		const held = new Promise<void>((r) => (release = r));
+		lm.request(PREFIX + id, { ifAvailable: true }, (lock) => {
+			if (!lock) {
+				resolve(null);
 				return;
 			}
-			ch.onmessage = (e) => {
-				if (e.data === 'who') ch.postMessage('here');
-			};
-			resolve({ owner: true, release: () => ch.close() });
-		}, 150);
+			resolve({ release });
+			return held;
+		}).catch(() => resolve({ release: () => undefined }));
 	});
+}
+
+/** Projects held by other tabs now (this tab's own `current` left out). */
+export async function heldElsewhere(current: string | null): Promise<ReadonlySet<string>> {
+	const lm = locks();
+	if (!lm?.query) return new Set();
+	try {
+		const q = await lm.query();
+		const out = new Set<string>();
+		for (const l of q.held ?? []) {
+			const name = l.name ?? '';
+			if (name.startsWith(PREFIX)) out.add(name.slice(PREFIX.length));
+		}
+		if (current) out.delete(current);
+		return out;
+	} catch {
+		return new Set();
+	}
 }

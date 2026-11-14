@@ -9,7 +9,10 @@ declare global {
 		}
 		// interface Locals {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			/** Work is open (a history entry above Home, so Back goes Home). */
+			view?: 'project';
+		}
 		// interface Platform {}
 	}
 }

@@ -5,7 +5,16 @@
 </script>
 
 <header class="topbar">
-	<a class="wordmark" href="/" aria-label="pdf.garrettholmes.com, home">
+	<a
+		class="wordmark"
+		href="/"
+		aria-label="pdf.garrettholmes.com, home"
+		onclick={(e) => {
+			if (!topbar.home || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+			e.preventDefault();
+			topbar.home();
+		}}
+	>
 		<Mark size={26} />
 		<span class="name" aria-hidden="true"><span class="pdf">pdf</span><span class="host">.garrettholmes.com</span></span>
 	</a>

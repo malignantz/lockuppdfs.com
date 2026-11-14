@@ -6,14 +6,17 @@
 		saved: boolean;
 		line: string;
 		onopen: () => void;
+		/** No room, or as many pieces of work as are kept: offer to forget other work. */
+		onmakeroom?: () => void;
 	}
 
-	let { saved, line, onopen }: Props = $props();
+	let { saved, line, onopen, onmakeroom }: Props = $props();
 </script>
 
 <p class="line" class:unsaved={!saved} data-testid="save-line">
 	{#if saved}<Icon name="shield-check" size={16} />{/if}
 	<span>{line}</span>
+	{#if onmakeroom}<button type="button" class="more" onclick={onmakeroom}>Make room</button>{/if}
 	<button type="button" class="more" onclick={onopen}>Settings</button>
 </p>
 
