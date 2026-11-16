@@ -43,3 +43,12 @@ WOFF2, from the [Fontsource](https://fontsource.org) npm packages (version 5.3.0
 | [Great Vibes](https://github.com/googlefonts/great-vibes) | `great-vibes-latin{,-ext}-400-normal.woff2` | SIL Open Font License 1.1 (`great-vibes-OFL.txt`) |
 | [Dancing Script](https://github.com/googlefonts/DancingScript) | `dancing-script-latin{,-ext}-400-normal.woff2` | SIL Open Font License 1.1 (`dancing-script-OFL.txt`) |
 | [Caveat](https://github.com/googlefonts/caveat) | `caveat-latin{,-ext}-400-normal.woff2` | SIL Open Font License 1.1 (`caveat-OFL.txt`) |
+
+## Campaign display face (`design/lockup/`, LockUpPDFs build only)
+
+The headline face of the LockUpPDFs poster, top bar and share image. Copied into the
+campaign build by `scripts/site-meta.mjs`; the plain site never ships or loads it.
+
+| Font | Files | License |
+|---|---|---|
+| [Anton](https://github.com/googlefonts/AntonFont) Regular, from `@fontsource/anton` 5.3.0 (latin), subset with fontTools `pyftsubset` to Basic Latin plus curly quotes, dashes and ellipsis (9.6 KB WOFF2) | `anton-subset.woff2` | SIL Open Font License 1.1 (`anton-OFL.txt`) |
