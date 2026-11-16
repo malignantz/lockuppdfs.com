@@ -1,4 +1,4 @@
-# StopPDFs campaign: resume notes (2026-11-15)
+# PDF pun campaign (working name StopPDFs): resume notes (2026-11-15)
 
 Status: **idea agreed in outline, nothing built.** This file is the starting point for a fresh
 session. Decisions that are still Garrett's are listed under "Open decisions". Nothing is
@@ -78,13 +78,53 @@ need to be funny.
   files." (unlock/export), "Redacted means redacted." (real redaction), "No PDF leaves this
   device." (local), "Every PDF is checked before release." (verified export).
 
+## Domain names (checked 2026-11-15)
+
+Checked against the .com registry: "free" means unregistered on that day. It says nothing about
+price (a name can still be listed as premium), so check again before buying. Garrett quoted
+$10.46 for a .com.
+
+| Name | State | Note |
+|---|---|---|
+| RoundUpPDFs.com | free | Reads three ways: gather files into one (the app's main job), the pun, and "round up" as in a small donation. Double "p". **First choice.** |
+| LockUpPDFs.com | free | Literally the password feature; best slogan. Double "p". LockUpPDF.com also free. **Second.** |
+| WranglePDFs.com | free | Garrett's idea. Accurate, friendly, no double "p", but the second meaning mostly disappears. WranglePDF.com also free. **Third: the choice if the name should work with no joke.** |
+| StopPDFs.com | free | The original. Short, pairs with a charity pitch, but describes nothing the tool does. Double "p". |
+| PDFjail.com, BustPDFs.com, HandlePDFs.com, ToughOnPDFs.com, NabPDFs.com | free | No double "p". |
+| EnsnarePDFs.com | free | Garrett's idea; turned down: hard to spell, describes no feature, and "ensnare" is what the trap sites do. |
+| PDFwrangler.com, NoMorePDFs.com, GetPDFs.com | taken | |
+
+A double "p" in the middle (stoppdfs, lockuppdfs, rounduppdfs) is a small typing snag. It was
+judged less important than whether the name sticks, since most people will tap a link.
+
+## Is it worth doing (honest view, 2026-11-15)
+
+- Going viral or getting press: unlikely, a few percent at best.
+- A slow trickle of users who remember the name: plausible, if Garrett keeps posting.
+- Clients for his web business: weak. The audience for the pun is not the audience that hires
+  him, and a few clients may be put off.
+- What decides it is whether he makes and posts clips for a few weeks, not the domain or the
+  build. If not, skip it.
+- The app itself (free, private, no trap at the download) is the real asset and worth showing
+  people with or without the pun.
+
+**Agreed shape if it goes ahead: a small, capped try.**
+
+1. Buy one domain.
+2. Build the second-domain version (small; see the build outline).
+3. Garrett posts three clips over two weeks.
+4. After 30 days, read the visit count Cloudflare already keeps for the domain (no analytics
+   script is added to the app). A few dozen visits: let the domain lapse.
+
 ## Open decisions (Garrett)
 
-- The domain: StopPDFs.com, or LockUpPDFs.com (better literal fit: the password feature), or
-  both with one redirecting. Availability has not been checked.
+- Go or no-go on the capped try. Not decided as of 2026-11-15.
+- The domain (ranking above).
 - Which charity, and whether to ask its permission to be named.
 - Whether Garrett gives first and shows it ("we gave $X").
 - Whether his name or business appears on the campaign domain, and when.
+- This repo is public, so this plan is readable by anyone before launch. Move it somewhere
+  private if that matters.
 
 ## Risks noted
 
