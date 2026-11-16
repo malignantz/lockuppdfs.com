@@ -61,7 +61,7 @@ test('after a real export: download first, then one quiet note; dismissed it sta
 		const href = (await a.getAttribute('href'))!;
 		expect(href).toMatch(/^https:\/\//);
 		expect(siteSource, 'link comes from site.ts').toContain(href);
-		expect(siteSource).toContain((await a.innerText()).trim());
+		expect(siteSource).toContain((await a.textContent())!.trim());
 		await expect(a).toHaveAttribute('target', '_blank');
 		await expect(a).toHaveAttribute('rel', 'noopener noreferrer');
 		await expect(a).not.toHaveAttribute('ping', /.*/);
