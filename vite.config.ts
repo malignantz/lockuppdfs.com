@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
@@ -29,6 +30,14 @@ export const cspDirectives = {
 const lockup = process.env.VITE_SITE === 'lockup';
 
 export default defineConfig({
+	resolve: {
+		// The campaign build's look (palette, typeface) is one stylesheet imported by the
+		// layout as 'site-theme.css'. The plain build gets an empty file, so nothing of the
+		// campaign's styling can reach pdf.garrettholmes.com.
+		alias: {
+			'site-theme.css': fileURLToPath(new URL(`./src/lib/site/theme-${lockup ? 'lockup' : 'plain'}.css`, import.meta.url))
+		}
+	},
 	// The engine worker code-splits (qpdf, pdf-lib, PDF.js load on demand), which needs ES workers.
 	worker: { format: 'es' },
 	plugins: [

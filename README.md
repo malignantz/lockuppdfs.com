@@ -32,10 +32,16 @@ npx wrangler deploy  # after a build: Cloudflare Worker, static assets only
 ## Two sites from one codebase
 
 The same app is built twice. `VITE_SITE=lockup` at build time makes the campaign
-site (LockUpPDFs.com): its own title, description and share tags in the static HTML,
-its name in the header, a short pitch on the start page, and a quiet donation ask after
-a download. Without it you get the plain site, pdf.garrettholmes.com, unchanged.
+site (LockUpPDFs.com): its own title, description and share tags (with a 1200x630 share
+image) in the static HTML, its own start page (`src/lib/site/LockupSplash.svelte`: the pun,
+then a giving card with plain links to the charities), its own palette and typeface
+(`src/lib/site/theme-lockup.css`, imported only by this build through the `site-theme.css`
+alias in `vite.config.ts`), its own icons, and a quiet donation ask after a download.
+Without it you get the plain site, pdf.garrettholmes.com, unchanged.
 All campaign wording and the charity links live in `src/lib/site/site.ts` and nowhere else.
+The icons and share image are drawn in `design/lockup/` and rendered into `static-lockup/`
+with `node scripts/make-lockup-art.mjs`; `scripts/site-meta.mjs` copies them into the
+campaign build only.
 
 ```sh
 npm run build          # plain site into build/

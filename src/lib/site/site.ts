@@ -18,8 +18,14 @@ export interface Campaign {
 	name: string;
 	title: string;
 	description: string;
-	// Shown on the start page, above the usual content.
-	pitch: { heading: string; body: string };
+	// The start page (splash): the pun said straight, then the giving card.
+	// The giving card reuses ask.links and ask.note.
+	splash: {
+		headline: string;
+		tagline: string;
+		body: string;
+		give: { heading: string; lead: string };
+	};
 	// Shown once on the export result screen, only after the file is saved.
 	ask: { lead: string; links: CampaignLink[]; note: string };
 }
@@ -31,9 +37,14 @@ const lockup: Campaign = {
 	title: 'LockUpPDFs: free PDF tools with no charge at the download',
 	description:
 		'Combine, sign, lock and fix PDFs for free. Your files stay on your device, and nothing is charged when you download.',
-	pitch: {
-		heading: 'Free, including the download.',
-		body: 'Some PDF sites let you do the work and then charge you for the file. This one does not. It is free, and your files never leave your device.'
+	splash: {
+		headline: 'Lock up PDFs.',
+		tagline: 'Yes, both kinds.',
+		body: 'This site fixes the document kind for free: combine, sign, shrink, no charge at the download. The other kind of PDF file belongs in prison.',
+		give: {
+			heading: 'Saved a few dollars?',
+			lead: 'Other sites charge you for the file. This one never will. Give what you saved to the people who protect children from the other kind.'
+		}
 	},
 	ask: {
 		lead: 'That was free. If another site would have charged you for it, consider giving that money to child protection instead.',

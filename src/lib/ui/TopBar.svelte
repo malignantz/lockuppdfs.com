@@ -3,6 +3,7 @@
 	import Mark from './Mark.svelte';
 	import { topbar } from './topbar.svelte';
 	import { campaign } from '../site/site';
+	import LockMark from '../site/LockMark.svelte';
 </script>
 
 <header class="topbar">
@@ -16,8 +17,8 @@
 			topbar.home();
 		}}
 	>
-		<Mark size={26} />
-		<span class="name" aria-hidden="true">{#if campaign}<span class="pdf">{campaign.name}</span>{:else}<span class="pdf">pdf</span><span class="host">.garrettholmes.com</span>{/if}</span>
+		{#if campaign}<LockMark size={30} />{:else}<Mark size={26} />{/if}
+		<span class="name" aria-hidden="true">{#if campaign}<span class="lu-name">{campaign.name.replace(/PDFs$/, '')}<b>PDFs</b></span>{:else}<span class="pdf">pdf</span><span class="host">.garrettholmes.com</span>{/if}</span>
 	</a>
 
 	<div class="actions">
@@ -69,6 +70,19 @@
 
 	.host {
 		color: var(--ink-soft);
+	}
+
+	/* Campaign wordmark: LockUp in ink, PDFs in the accent. */
+	.lu-name {
+		font-family: var(--font-sans);
+		font-weight: 700;
+		font-size: 1.125rem;
+		letter-spacing: -0.03em;
+	}
+
+	.lu-name b {
+		font-weight: 700;
+		color: var(--accent);
 	}
 
 	.actions {

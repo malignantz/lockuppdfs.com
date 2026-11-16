@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+	<!-- LockUpPDFs app icon: the drawing of src/lib/site/LockMark.svelte. scripts/make-lockup-art.mjs renders the PNGs from it. -->
+	<defs>
+		<linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#4a68ff"/>
+			<stop offset="1" stop-color="#1630d8"/>
+		</linearGradient>
+		<linearGradient id="lock" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#23262f"/>
+			<stop offset="1" stop-color="#07080b"/>
+		</linearGradient>
+	</defs>
+	<rect class="tile" width="120" height="120" rx="28" fill="url(#tile)"/>
+	<rect class="rim" x="1" y="1" width="118" height="118" rx="27" fill="none" stroke="#ffffff" stroke-opacity=".16" stroke-width="2"/>
+	<g class="glyph">
+		<path d="M34 17h33l20 20v53a7 7 0 0 1-7 7H34a7 7 0 0 1-7-7V24a7 7 0 0 1 7-7z" fill="#ffffff"/>
+		<path d="M67 17v13a7 7 0 0 0 7 7h13z" fill="#c3ceff"/>
+		<rect class="line" x="36" y="34" width="22" height="5" rx="2.5" fill="#d9def0"/>
+		<rect class="line" x="36" y="45" width="34" height="5" rx="2.5" fill="#e6e9f4"/>
+		<rect class="line" x="36" y="56" width="14" height="5" rx="2.5" fill="#e6e9f4"/>
+		<path d="M61 70V60a14 14 0 0 1 28 0v10" fill="none" stroke="#0b0d12" stroke-width="8.5" stroke-linecap="round"/>
+		<rect x="50" y="66" width="50" height="38" rx="10" fill="url(#lock)"/>
+		<rect x="50" y="66" width="50" height="38" rx="10" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="1.5"/>
+		<circle cx="75" cy="82" r="5.5" fill="#ffffff"/>
+		<rect x="72.75" y="83" width="4.5" height="10" rx="2.25" fill="#ffffff"/>
+	</g>
+</svg>
