@@ -17,7 +17,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const build = fileURLToPath(new URL('../build/', import.meta.url));
+const build = fileURLToPath(new URL(`../${process.env.VITE_SITE === 'lockup' ? 'build-lockup' : 'build'}/`, import.meta.url));
 const root = join(build, '_app/immutable');
 
 function walk(dir) {

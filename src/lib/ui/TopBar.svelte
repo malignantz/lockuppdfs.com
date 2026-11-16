@@ -2,13 +2,14 @@
 	import Icon from './Icon.svelte';
 	import Mark from './Mark.svelte';
 	import { topbar } from './topbar.svelte';
+	import { campaign } from '../site/site';
 </script>
 
 <header class="topbar">
 	<a
 		class="wordmark"
 		href="/"
-		aria-label="pdf.garrettholmes.com, home"
+		aria-label="{campaign ? campaign.name : 'pdf.garrettholmes.com'}, home"
 		onclick={(e) => {
 			if (!topbar.home || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
 			e.preventDefault();
@@ -16,7 +17,7 @@
 		}}
 	>
 		<Mark size={26} />
-		<span class="name" aria-hidden="true"><span class="pdf">pdf</span><span class="host">.garrettholmes.com</span></span>
+		<span class="name" aria-hidden="true">{#if campaign}<span class="pdf">{campaign.name}</span>{:else}<span class="pdf">pdf</span><span class="host">.garrettholmes.com</span>{/if}</span>
 	</a>
 
 	<div class="actions">

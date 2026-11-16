@@ -14,7 +14,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const build = fileURLToPath(new URL('../build/', import.meta.url));
+const build = fileURLToPath(new URL(`../${process.env.VITE_SITE === 'lockup' ? 'build-lockup' : 'build'}/`, import.meta.url));
 const headerOnly = { 'frame-ancestors': ["'none'"] };
 
 function htmlFiles(dir) {

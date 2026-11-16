@@ -9,7 +9,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../build/', import.meta.url));
+const root = fileURLToPath(new URL(`../${process.env.VITE_SITE === 'lockup' ? 'build-lockup' : 'build'}/`, import.meta.url));
 const port = Number(process.argv[2] ?? process.env.PORT ?? 4173);
 
 const types = {

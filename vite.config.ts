@@ -23,6 +23,11 @@ export const cspDirectives = {
 	'form-action': ['none']
 } as const;
 
+// The campaign build (VITE_SITE=lockup) writes to its own folders so both
+// variants can be built side by side: build-lockup/ for the site and
+// .svelte-kit-lockup/ for SvelteKit's working files. The plain build is unchanged.
+const lockup = process.env.VITE_SITE === 'lockup';
+
 export default defineConfig({
 	// The engine worker code-splits (qpdf, pdf-lib, PDF.js load on demand), which needs ES workers.
 	worker: { format: 'es' },
@@ -33,7 +38,12 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter({ fallback: '404.html' }),
+			adapter: adapter({
+				fallback: '404.html',
+				pages: lockup ? 'build-lockup' : 'build',
+				assets: lockup ? 'build-lockup' : 'build'
+			}),
+			...(lockup ? { outDir: '.svelte-kit-lockup' } : {}),
 			csp: {
 				mode: 'hash',
 				directives: structuredClone(cspDirectives) as never
