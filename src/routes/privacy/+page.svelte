@@ -90,7 +90,7 @@
 		<section id="donation-links">
 			<h2>The donation links</h2>
 			<p class="para">
-				After you save a file, this site shows a short note with two links to charities' donation pages.
+				The start page, and a short note after you save a file, show two links to charities' donation pages.
 			</p>
 			<ul class="points">
 				<li>

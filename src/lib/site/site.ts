@@ -69,7 +69,7 @@ const lockup: Campaign = {
 		alt: 'A booking photo of a PDF document holding a letter board: PDF file, locked up, charge: none. Beside it: PDFs. Locked up. Free PDF tools. Charge: none. lockuppdfs.com'
 	},
 	ask: {
-		lead: 'That was free. If another site would have charged you for it, consider giving that money to child protection instead.',
+		lead: 'That was free. Charge: none. If another site would have charged you for it, consider giving that money to child protection instead.',
 		links: [
 			{ label: 'Give to NCMEC', href: 'https://give.missingkids.org/' },
 			{ label: 'Give to Thorn', href: 'https://www.thorn.org/donate/' }

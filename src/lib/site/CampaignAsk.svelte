@@ -34,7 +34,6 @@
 		border-radius: 4px;
 		background: var(--lk-paper);
 		color: var(--lk-ink);
-		box-shadow: 3px 3px 0 var(--lk-ink);
 	}
 
 	/* The orange strip along the top of the tag. */

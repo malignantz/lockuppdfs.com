@@ -1,6 +1,7 @@
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
+import { defineConfig, type Plugin } from 'vite';
 
 /**
  * Content-Security-Policy. SvelteKit adds a sha256 hash of its inline bootstrap
@@ -28,10 +29,30 @@ export const cspDirectives = {
 // .svelte-kit-lockup/ for SvelteKit's working files. The plain build is unchanged.
 const lockup = process.env.VITE_SITE === 'lockup';
 
+/**
+ * The campaign's own components carry its stylesheet and font. On the plain build they
+ * resolve to an empty component, so none of that is bundled, emitted or precached there.
+ */
+const lockupOnlyFiles = ['src/lib/site/LockupDesk.svelte', 'src/lib/site/LockupMark.svelte'];
+const nothing = fileURLToPath(new URL('./src/lib/site/Nothing.svelte', import.meta.url));
+function lockupOnly(): Plugin {
+	return {
+		name: 'lockup-only',
+		enforce: 'pre',
+		async resolveId(source, importer, options) {
+			if (lockup || !/Lockup(Desk|Mark)\.svelte$/.test(source)) return null;
+			const found = await this.resolve(source, importer, { ...options, skipSelf: true });
+			if (found && lockupOnlyFiles.some((f) => found.id.replace(/\\/g, '/').endsWith(f))) return nothing;
+			return null;
+		}
+	};
+}
+
 export default defineConfig({
 	// The engine worker code-splits (qpdf, pdf-lib, PDF.js load on demand), which needs ES workers.
 	worker: { format: 'es' },
 	plugins: [
+		lockupOnly(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

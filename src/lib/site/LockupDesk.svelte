@@ -191,7 +191,7 @@
 		padding: 0 calc(var(--s-4) + var(--safe-right)) 0 calc(var(--s-4) + var(--safe-left));
 	}
 
-	.top:has(> *) {
+	.top:has(> :global(*)) {
 		padding-top: var(--s-4);
 	}
 
