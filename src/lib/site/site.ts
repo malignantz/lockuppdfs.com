@@ -38,7 +38,7 @@ const lockup: Campaign = {
 	ask: {
 		lead: 'That was free. If another site would have charged you for it, consider giving that money to child protection instead.',
 		links: [
-			{ label: 'Give to NCMEC', href: 'https://www.missingkids.org/supportus/donate' },
+			{ label: 'Give to NCMEC', href: 'https://give.missingkids.org/' },
 			{ label: 'Give to Thorn', href: 'https://www.thorn.org/donate/' }
 		],
 		note: 'These links go to each charity’s own donation page. No money or data passes through this site, and it is not connected to either charity.'
