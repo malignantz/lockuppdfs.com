@@ -11,6 +11,7 @@
 	import Select from '../ui/Select.svelte';
 	import Toggle from '../ui/Toggle.svelte';
 	import { focusables } from '../ui/focus';
+	import CampaignAsk from '../site/CampaignAsk.svelte';
 	import OptionPicker from './OptionPicker.svelte';
 	import WatermarkPreview from './WatermarkPreview.svelte';
 	import { exportForm } from './export-form.svelte';
@@ -1125,6 +1126,7 @@
 				</ul>
 			{/if}
 			{#if saved}<p class="caption saved">Saved. You can keep working; nothing here has changed.</p>{/if}
+			{#if saved}<CampaignAsk />{/if}
 		</div>
 	{:else}
 		{@const err = phase.error}

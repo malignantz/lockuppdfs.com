@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '#lib/ui/Icon.svelte';
+	import { campaign } from '../../lib/site/site';
 
 	const repo = 'https://github.com/malignantz/pdf.garrettholmes.com';
 </script>
@@ -84,6 +85,32 @@
 			</li>
 		</ul>
 	</section>
+
+	{#if campaign}
+		<section id="donation-links">
+			<h2>The donation links</h2>
+			<p class="para">
+				After you save a file, this site shows a short note with two links to charities' donation pages.
+			</p>
+			<ul class="points">
+				<li>
+					<strong>They are ordinary links.</strong> Each goes straight to that charity's own donation page, and your
+					browser opens it only if you choose to follow it. Nothing is loaded from either charity beforehand.
+				</li>
+				<li>
+					<strong>No money and no data pass through this site.</strong> Any gift is made on the charity's own page,
+					under that charity's own terms.
+				</li>
+				<li>
+					<strong>This site is not connected to either charity.</strong>
+				</li>
+				<li>
+					<strong>It does not know whether a link was followed,</strong> and keeps no count or record of it. The
+					only thing remembered is that you closed the note, and only until you close this tab.
+				</li>
+			</ul>
+		</section>
+	{/if}
 
 	<section>
 		<h2>Check it yourself</h2>
