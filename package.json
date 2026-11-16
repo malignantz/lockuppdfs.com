@@ -9,7 +9,7 @@
 	},
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build && node scripts/csp-headers.mjs && node scripts/precache-list.mjs",
+		"build": "vite build && node scripts/site-meta.mjs && node scripts/csp-headers.mjs && node scripts/precache-list.mjs",
 		"preview": "node scripts/serve-build.mjs",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p src/service-worker",
@@ -38,7 +38,9 @@
 		"fastcheck:measure": "node --experimental-transform-types --no-warnings --import ./tools/survey/register.mjs tools/fast-check/measure.ts",
 		"fastcheck:browser": "node --experimental-transform-types --no-warnings --import ./tools/survey/register.mjs tools/fast-check/browser.ts",
 		"bilevel:measure": "node --experimental-transform-types --no-warnings --import ./tools/survey/register.mjs tools/bilevel/measure.ts",
-		"bilevel:engine": "node --experimental-transform-types --no-warnings --import ./tools/survey/register.mjs tools/bilevel/engine-run.ts"
+		"bilevel:engine": "node --experimental-transform-types --no-warnings --import ./tools/survey/register.mjs tools/bilevel/engine-run.ts",
+		"build:lockup": "VITE_SITE=lockup npm run build",
+		"deploy:lockup": "npm run build:lockup && npx wrangler deploy --config wrangler.lockup.jsonc"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.65.0",

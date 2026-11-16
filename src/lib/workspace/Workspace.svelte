@@ -4,6 +4,7 @@
 	import { pushState, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { describeError } from '../ui/error-report';
+	import { campaign } from '../site/site';
 	import type { PageId } from '../core/types';
 	import { getApp } from '../app';
 	import { useDocStore } from '../doc/store.svelte';
@@ -917,7 +918,7 @@
 <svelte:window {onkeydown} {onpaste} {onbeforeunload} {ondragenter} {ondragover} {ondragleave} {ondrop} />
 
 <svelte:head>
-	<title>{inProject ? `${plural(count, 'page')} · PDF Workspace` : 'PDF Workspace · pdf.garrettholmes.com'}</title>
+	<title>{campaign ? (inProject ? `${plural(count, 'page')} · ${campaign.name}` : campaign.title) : inProject ? `${plural(count, 'page')} · PDF Workspace` : 'PDF Workspace · pdf.garrettholmes.com'}</title>
 </svelte:head>
 
 {#if inProject}

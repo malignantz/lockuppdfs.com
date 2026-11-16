@@ -6,7 +6,9 @@ node_modules
 .netlify
 .wrangler
 /.svelte-kit
+/.svelte-kit-lockup
 /build
+/build-lockup
 
 # OS
 .DS_Store

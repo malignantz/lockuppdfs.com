@@ -41,6 +41,11 @@ jobs:
           # Includes the /dev-editor harness the end-to-end tests drive.
           VITE_DEV_HARNESS: '1'
 
+      - name: Build the campaign variant (LockUpPDFs)
+        run: npm run build:lockup
+        env:
+          VITE_DEV_HARNESS: '1'
+
       - name: End-to-end tests
         run: npm run test:e2e
         env:
