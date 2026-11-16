@@ -23,62 +23,94 @@
 {/if}
 
 <style>
+	/* The campaign's evidence-tag look (tokens in lockup.css), at dialog scale. */
 	.ask {
+		position: relative;
 		display: grid;
 		gap: var(--s-3);
 		padding: var(--s-4);
-		border: 1px solid var(--line);
-		border-radius: var(--radius-control);
-		background: var(--hover);
+		padding-top: calc(var(--s-4) + 6px);
+		border: 3px solid var(--lk-ink);
+		border-radius: 4px;
+		background: var(--lk-paper);
+		color: var(--lk-ink);
+		box-shadow: 3px 3px 0 var(--lk-ink);
+	}
+
+	/* The orange strip along the top of the tag. */
+	.ask::before {
+		content: '';
+		position: absolute;
+		inset: 0 0 auto;
+		height: 6px;
+		background: var(--lk-orange);
+		border-bottom: 2px solid var(--lk-ink);
 	}
 
 	.lead {
-		color: var(--ink);
+		font-weight: 600;
+		line-height: 1.45;
 	}
 
 	.links {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--s-2) var(--s-4);
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+		gap: var(--s-2);
 		padding: 0;
 		margin: 0;
 		list-style: none;
 	}
 
-	.links a,
-	.dismiss {
-		display: inline-flex;
+	.links a {
+		display: flex;
 		align-items: center;
-		min-height: 32px;
-		font-size: var(--text-control);
+		justify-content: center;
+		min-height: 44px;
+		padding: 0 var(--s-3);
+		border: 2px solid var(--lk-ink);
+		border-radius: 4px;
+		background: var(--lk-ink);
+		color: var(--lk-paper);
+		font-family: var(--lk-display);
+		font-size: 1.0625rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		text-decoration: none;
+		line-height: 1;
 	}
 
-	.links a {
-		font-weight: 600;
+	.links a:hover {
+		background: var(--lk-paper);
+		color: var(--lk-ink);
 	}
 
 	.note {
-		color: var(--ink-soft);
+		color: var(--lk-soft);
 	}
 
 	.dismiss {
 		justify-self: start;
+		display: inline-flex;
+		align-items: center;
+		min-height: 36px;
 		padding: 0 var(--s-3);
-		border: 1px solid var(--line-strong);
-		border-radius: var(--radius-control);
+		border: 2px solid var(--lk-ink);
+		border-radius: 4px;
 		background: transparent;
-		color: var(--ink);
+		color: var(--lk-ink);
 		font-family: inherit;
+		font-size: var(--text-control);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.dismiss:hover {
-		background: var(--hover);
+		background: color-mix(in srgb, var(--lk-ink) 7%, transparent);
 	}
 
 	.dismiss:focus-visible,
 	.links a:focus-visible {
-		outline: 2px solid var(--accent);
+		outline: 3px solid var(--lk-focus);
 		outline-offset: 2px;
 	}
 

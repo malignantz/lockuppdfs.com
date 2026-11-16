@@ -1,0 +1,66 @@
+/*
+ * The campaign build's look (LockUpPDFs): booking-room greys, one jumpsuit orange, and
+ * one bundled display face. Every rule here is keyed to <html data-site="lockup">, which
+ * only the campaign build sets (scripts/site-meta.mjs, and TopBar on start), so none of
+ * it can reach the plain site.
+ *
+ * The --lk-* tokens are the campaign's own. The Desk tokens below are only re-coloured
+ * (no beige), so the workspace keeps its layout and contrast and simply matches.
+ */
+
+@font-face {
+	/* Anton, SIL OFL 1.1, subset to Latin basics: src/lib/site/fonts/anton-OFL.txt */
+	font-family: 'Anton LockUp';
+	src: url('./fonts/anton-lockup.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+:root[data-site='lockup'] {
+	--lk-display: 'Anton LockUp', Impact, 'Arial Narrow Bold', 'Helvetica Neue Condensed', sans-serif;
+	--lk-ink: #111111;
+	--lk-soft: #4b5058;
+	--lk-paper: #ffffff;
+	--lk-bg: #f3f4f5;
+	--lk-wall: #e9eaec;
+	/* Jumpsuit orange. Always under black text (6.6:1); never as text on light grounds. */
+	--lk-orange: #ff6a13;
+	--lk-orange-ink: #111111;
+	--lk-focus: #111111;
+
+	--desk: #eeeff1;
+	--desk-deep: #e2e4e7;
+	--surface: #ffffff;
+	--ink: #111111;
+	--ink-soft: #4b5058;
+	--line: #d5d8dd;
+	--accent: #c2410c;
+	--accent-ink: #ffffff;
+	--danger: #9a3412;
+	--mark-back: #e2e4e7;
+	--sheet-line: #e5e7ea;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root[data-site='lockup']:not([data-theme='light']) {
+		--lk-ink: #f3f4f6;
+		--lk-soft: #a9afb8;
+		--lk-paper: #1c1d1f;
+		--lk-bg: #121314;
+		--lk-wall: #1c1d1f;
+		--lk-focus: #f3f4f6;
+
+		--desk: #121314;
+		--desk-deep: #0a0a0b;
+		--surface: #1c1d1f;
+		--ink: #f3f4f6;
+		--ink-soft: #a9afb8;
+		--line: #34373c;
+		--accent: #ff7a2e;
+		--accent-ink: #111111;
+		--danger: #ff7a2e;
+		--mark-back: #a9afb8;
+		--sheet-line: #e5e7ea;
+	}
+}

@@ -16,10 +16,28 @@ export interface CampaignLink {
 
 export interface Campaign {
 	name: string;
+	// The name as the top bar sets it: the second part sits on the orange chip.
+	wordmark: [string, string];
 	title: string;
 	description: string;
-	// Shown on the start page, above the usual content.
-	pitch: { heading: string; body: string };
+	// The start page: a booking photo of a PDF, the headline, and the giving band.
+	splash: {
+		// Two lines; the second is the one set on the orange band.
+		headline: [string, string];
+		sub: string;
+		// The picture's text alternative.
+		photoLabel: string;
+		// The letter board the PDF holds. The last line is split so its last word can be orange.
+		placard: { header: string; lines: [string, string]; charge: [string, string] };
+		// The giving band, styled as an evidence tag. It uses ask.links and ask.note below.
+		give: { tag: string; heading: string; lead: string };
+		// Over the tool list ("What you can do").
+		rapSheet: string;
+		// Each entry of the tool list is numbered like a count on a charge sheet.
+		count: string;
+	};
+	// The link preview image (design/lockup/share.html, rendered by scripts/make-lockup-assets.mjs).
+	share: { line: string; alt: string };
 	// Shown once on the export result screen, only after the file is saved.
 	ask: { lead: string; links: CampaignLink[]; note: string };
 }
@@ -28,12 +46,27 @@ export const SITE_ID: SiteId = import.meta.env.VITE_SITE === 'lockup' ? 'lockup'
 
 const lockup: Campaign = {
 	name: 'LockUpPDFs',
+	wordmark: ['LockUp', 'PDFs'],
 	title: 'LockUpPDFs: free PDF tools with no charge at the download',
 	description:
 		'Combine, sign, lock and fix PDFs for free. Your files stay on your device, and nothing is charged when you download.',
-	pitch: {
-		heading: 'Free, including the download.',
-		body: 'Some PDF sites let you do the work and then charge you for the file. This one does not. It is free, and your files never leave your device.'
+	splash: {
+		headline: ['PDFs.', 'Locked up.'],
+		sub: 'Free PDF tools with no charge at the download.',
+		photoLabel:
+			'A booking photo of a PDF document standing against a height chart, holding a letter board that reads: PDF file, locked up, charge: none.',
+		placard: { header: 'LOCKUPPDFS.COM', lines: ['PDF FILE', 'LOCKED UP'], charge: ['CHARGE:', 'NONE'] },
+		give: {
+			tag: 'Exhibit A',
+			heading: 'The money you saved',
+			lead: 'Other sites charge you for the file. This one is free. Give what you saved to the people who protect children from the other kind of PDF file.'
+		},
+		rapSheet: 'Rap sheet',
+		count: 'Count'
+	},
+	share: {
+		line: 'Free PDF tools. Charge: none.',
+		alt: 'A booking photo of a PDF document holding a letter board: PDF file, locked up, charge: none. Beside it: PDFs. Locked up. Free PDF tools. Charge: none. lockuppdfs.com'
 	},
 	ask: {
 		lead: 'That was free. If another site would have charged you for it, consider giving that money to child protection instead.',

@@ -19,6 +19,20 @@ describe('site variant', () => {
 		expect(SITE_ID).toBe('lockup');
 		expect(campaign?.name).toBe('LockUpPDFs');
 		expect(campaign?.title).toContain('LockUpPDFs');
-		expect(campaign?.pitch.heading).not.toBe('');
+		expect(campaign?.splash.headline.join(' ')).toBe('PDFs. Locked up.');
+		expect(campaign?.splash.placard.charge.join(' ')).toBe('CHARGE: NONE');
+	});
+
+	it('keeps the campaign wording inside the rules', async () => {
+		vi.stubEnv('VITE_SITE', 'lockup');
+		const { campaign } = await import('../../src/lib/site/site');
+		const all = JSON.stringify(campaign);
+		// The joke is aimed at offenders only, never spelled out, never anyone's name.
+		expect(all).not.toMatch(/pedo|paedo/i);
+		expect(all).not.toMatch(/garrett|holmes/i);
+		// No claim of a link to the charities, no prices.
+		expect(all).not.toMatch(/partner|official|endorse|sponsor/i);
+		expect(all).not.toMatch(/[$€£]\s?\d/);
+		for (const l of campaign!.ask.links) expect(l.href).toMatch(/^https:\/\//);
 	});
 });

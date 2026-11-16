@@ -11,6 +11,7 @@
 	import ActionBar from '../ui/ActionBar.svelte';
 	import Button from '../ui/Button.svelte';
 	import EmptyDesk from '../ui/EmptyDesk.svelte';
+	import LockupDesk from '../site/LockupDesk.svelte';
 	import Icon from '../ui/Icon.svelte';
 	import IconButton from '../ui/IconButton.svelte';
 	import Menu, { type MenuItem } from '../ui/Menu.svelte';
@@ -78,6 +79,14 @@
 	const count = $derived(pages.length);
 	const selCount = $derived(selection.size);
 	const hasPages = $derived(count > 0);
+	// Said under "Choose files" on Home when there is work already (new files start new work).
+	const homeNewWork = $derived(
+		saved.cards.length
+			? hasPages && !saved.cards[0].saved
+				? 'This starts new work. The work that is open is not saved, so it will be closed.'
+				: 'This starts new work. Your other work stays saved.'
+			: undefined
+	);
 
 	/**
 	 * Home or the open work. The work is a history entry above Home (`page.state.view`),
@@ -989,34 +998,15 @@
 			{ongridkey}
 			announce={say}
 		/>
+	{:else if campaign}
+		<LockupDesk onfiles={(files) => void homeFiles(files)} accept={ACCEPT} newWork={homeNewWork} top={yourWork} />
 	{:else}
 		<EmptyDesk
 			onfiles={(files) => void homeFiles(files)}
 			accept={ACCEPT}
-			newWork={saved.cards.length
-				? hasPages && !saved.cards[0].saved
-					? 'This starts new work. The work that is open is not saved, so it will be closed.'
-					: 'This starts new work. Your other work stays saved.'
-				: undefined}
-		>
-			{#snippet top()}
-				{#if saved.cards.length}
-					<YourWork
-						cards={saved.cards}
-						opening={saved.opening}
-						busy={intake.busy || saved.restoring}
-						keep={saved.keep}
-						notSaved={hasPages && saved.cards[0]?.open && !saved.cards[0].saved && saved.keep ? saved.line : null}
-						{canMakeRoom}
-						onopen={(c) => void openCard(c)}
-						onforget={(c) => void forgetCard(c)}
-						onforgetall={() => void forgetAll()}
-						onsettings={() => (saveOpen = true)}
-						onmakeroom={() => (roomOpen = true)}
-					/>
-				{/if}
-			{/snippet}
-		</EmptyDesk>
+			newWork={homeNewWork}
+			top={yourWork}
+		/>
 	{/if}
 
 	{#if showFloat}
@@ -1119,6 +1109,25 @@
 {/if}
 
 <div class="visually-hidden" aria-live="polite" aria-atomic="true">{live}</div>
+
+<!-- Home's "Your work" cards, over either start page. -->
+{#snippet yourWork()}
+	{#if saved.cards.length}
+		<YourWork
+			cards={saved.cards}
+			opening={saved.opening}
+			busy={intake.busy || saved.restoring}
+			keep={saved.keep}
+			notSaved={hasPages && saved.cards[0]?.open && !saved.cards[0].saved && saved.keep ? saved.line : null}
+			{canMakeRoom}
+			onopen={(c) => void openCard(c)}
+			onforget={(c) => void forgetCard(c)}
+			onforgetall={() => void forgetAll()}
+			onsettings={() => (saveOpen = true)}
+			onmakeroom={() => (roomOpen = true)}
+		/>
+	{/if}
+{/snippet}
 
 <style>
 	.workspace {

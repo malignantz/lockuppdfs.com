@@ -2,8 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import Button from './Button.svelte';
 	import Icon from './Icon.svelte';
-	import type { IconName } from './icons';
-	import { campaign } from '../site/site';
+	import { features, FIRST } from './features';
 
 	/**
 	 * The empty state. The whole desk (the window) is the drop target while this
@@ -22,28 +21,6 @@
 	let { onfiles, accept = 'application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif,image/heic,image/*', top, newWork }: Props =
 		$props();
 
-	// Ordered by how often people need each one (the demand table in the plan). The first
-	// ones are always shown; the rest fold under "More it can do", open where there is room.
-	const features: { icon: IconName; title: string; line: string }[] = [
-		{ icon: 'duplicate', title: 'Combine files', line: 'Merge several PDFs into one, in the order you want.' },
-		{ icon: 'file', title: 'Pictures to PDF', line: 'Turn photos and scans into one PDF.' },
-		{ icon: 'image', title: 'PDF to pictures', line: 'Save pages as JPG or PNG.' },
-		{ icon: 'shrink', title: 'Make it smaller', line: 'Shrink a file or a scan to fit an email limit.' },
-		{ icon: 'sign', title: 'Fill in and sign', line: 'Add your signature, type on the page, fill in form fields.' },
-		{ icon: 'extract', title: 'Split', line: 'Save some pages as a new file, or split one into several.' },
-		{ icon: 'trash', title: 'Delete and reorder pages', line: 'Drag pages into place and remove the ones you do not need.' },
-		{ icon: 'lock', title: 'Unlock', line: 'Remove a password you know, or limits on printing and copying.' },
-		{ icon: 'rotate-right', title: 'Rotate', line: 'Turn pages that came out sideways.' },
-		{ icon: 'crop', title: 'Crop', line: 'Trim the margins of a page.' },
-		{ icon: 'lock', title: 'Add a password', line: 'The file needs it to open. AES-256.' },
-		{ icon: 'redact', title: 'Black out private details', line: 'Redaction that truly removes what is under the box.' },
-		{ icon: 'text', title: 'Page numbers', line: 'Number the pages, or add Bates numbers.' },
-		{ icon: 'text', title: 'Watermark', line: 'Text such as DRAFT across every page.' },
-		{ icon: 'highlight', title: 'Mark up', line: 'Highlight, add check marks and dates.' },
-		{ icon: 'zoom-in', title: 'Searchable scans', line: 'On a computer, make typed text on scanned pages searchable.' }
-	];
-	/** How many are always shown. */
-	const FIRST = 8;
 	// Open where the whole list fits beside the rest of the page (a desktop window).
 	let more = $state(typeof matchMedia === 'function' && matchMedia('(min-width: 760px) and (min-height: 760px)').matches);
 	const shown = $derived(more ? features : features.slice(0, FIRST));
@@ -95,12 +72,6 @@
 
 <section class="desk" class:dragging aria-labelledby="empty-title">
 	<div class="stage">
-		{#if campaign}
-			<aside class="pitch" aria-label="About this site">
-				<h2 class="pitch-heading">{campaign.pitch.heading}</h2>
-				<p class="pitch-body">{campaign.pitch.body}</p>
-			</aside>
-		{/if}
 		{#if top}{@render top()}{/if}
 		<div class="sheets" class:hidden={!!newWork} aria-hidden="true">
 			<div class="sheet s1"></div>
@@ -200,31 +171,6 @@
 		max-width: 56rem;
 		/* Optical centre sits a little above the geometric one. */
 		margin-top: -2vh;
-	}
-
-	/* ---------- Campaign pitch (only on the LockUpPDFs build) ---------- */
-
-	.pitch {
-		max-width: 36rem;
-		margin-bottom: var(--s-4);
-		padding-bottom: var(--s-3);
-		border-bottom: 1px solid var(--line);
-	}
-
-	.pitch-heading {
-		font-family: var(--font-serif);
-		font-weight: 500;
-		font-size: 1.25rem;
-		line-height: 1.25;
-		color: var(--ink);
-	}
-
-	.pitch-body {
-		margin-top: var(--s-1);
-		font-size: var(--text-caption);
-		line-height: 1.5;
-		color: var(--ink-soft);
-		text-wrap: balance;
 	}
 
 	/* ---------- Sheets illustration ---------- */

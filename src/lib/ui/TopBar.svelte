@@ -2,10 +2,15 @@
 	import Icon from './Icon.svelte';
 	import Mark from './Mark.svelte';
 	import { topbar } from './topbar.svelte';
+	import LockupMark from '../site/LockupMark.svelte';
 	import { campaign } from '../site/site';
+
+	// The campaign build's look is keyed to <html data-site="lockup">. The built pages carry it
+	// already (scripts/site-meta.mjs); this covers the dev server.
+	if (campaign && typeof document !== 'undefined') document.documentElement.dataset.site = 'lockup';
 </script>
 
-<header class="topbar">
+<header class="topbar" class:lockup={!!campaign}>
 	<a
 		class="wordmark"
 		href="/"
@@ -16,8 +21,8 @@
 			topbar.home();
 		}}
 	>
-		<Mark size={26} />
-		<span class="name" aria-hidden="true">{#if campaign}<span class="pdf">{campaign.name}</span>{:else}<span class="pdf">pdf</span><span class="host">.garrettholmes.com</span>{/if}</span>
+		{#if campaign}<LockupMark size={30} />{:else}<Mark size={26} />{/if}
+		<span class="name" aria-hidden="true">{#if campaign}<span class="lk-a">{campaign.wordmark[0]}</span><span class="lk-b">{campaign.wordmark[1]}</span>{:else}<span class="pdf">pdf</span><span class="host">.garrettholmes.com</span>{/if}</span>
 	</a>
 
 	<div class="actions">
@@ -105,6 +110,46 @@
 
 	.local-text {
 		color: var(--ink-soft);
+	}
+
+	/* ---------- Campaign build (LockUpPDFs) ---------- */
+
+	.lockup {
+		background: var(--lk-paper);
+		border-bottom: 3px solid var(--lk-ink);
+	}
+
+	.lockup .wordmark {
+		gap: 8px;
+		color: var(--lk-ink);
+	}
+
+	.lockup .name {
+		display: inline-flex;
+		align-items: center;
+		font-family: var(--lk-display);
+		font-size: 1.4375rem;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+	}
+
+	.lk-b {
+		margin-left: 3px;
+		padding: 2px 5px 1px;
+		background: var(--lk-orange);
+		color: var(--lk-orange-ink);
+		box-shadow: 2px 2px 0 var(--lk-ink);
+		transform: rotate(-2deg);
+	}
+
+	.lockup .wordmark:focus-visible,
+	.lockup .local:focus-visible {
+		outline: 3px solid var(--lk-focus);
+		outline-offset: 2px;
+	}
+
+	.lockup .local {
+		border-color: color-mix(in srgb, var(--lk-ink) 25%, transparent);
 	}
 
 	@media (pointer: coarse) {

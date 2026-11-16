@@ -3,7 +3,7 @@
 // manifest, so a shared link shows the right text without running any script.
 // The wording comes from src/lib/site/site.ts, the one place it lives.
 // On the plain build this script does nothing, so that output is untouched.
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
@@ -11,6 +11,10 @@ import { createServer } from 'vite';
 if (process.env.VITE_SITE !== 'lockup') process.exit(0);
 
 const build = fileURLToPath(new URL('../build-lockup/', import.meta.url));
+// The campaign's own icons and link preview (scripts/make-lockup-assets.mjs). They replace
+// the plain site's files of the same name in build-lockup/ only.
+const assets = fileURLToPath(new URL('../design/lockup/', import.meta.url));
+const ORIGIN = 'https://lockuppdfs.com';
 
 const server = await createServer({
 	configFile: false,
@@ -43,14 +47,25 @@ const share = [
 	`<meta property="og:site_name" content="${esc(campaign.name)}" />`,
 	`<meta property="og:title" content="${esc(campaign.title)}" />`,
 	`<meta property="og:description" content="${esc(campaign.description)}" />`,
-	`<meta name="twitter:card" content="summary" />`,
+	`<meta property="og:url" content="${ORIGIN}/" />`,
+	`<meta property="og:image" content="${ORIGIN}/og.png" />`,
+	`<meta property="og:image:width" content="1200" />`,
+	`<meta property="og:image:height" content="630" />`,
+	`<meta property="og:image:alt" content="${esc(campaign.share.alt)}" />`,
+	`<meta name="twitter:card" content="summary_large_image" />`,
 	`<meta name="twitter:title" content="${esc(campaign.title)}" />`,
-	`<meta name="twitter:description" content="${esc(campaign.description)}" />`
+	`<meta name="twitter:description" content="${esc(campaign.description)}" />`,
+	`<meta name="twitter:image" content="${ORIGIN}/og.png" />`,
+	`<meta name="twitter:image:alt" content="${esc(campaign.share.alt)}" />`
 ].join('\n\t\t');
 
 let n = 0;
 for (const file of htmlFiles(build)) {
 	let html = readFileSync(file, 'utf8');
+	// Every page: the campaign look (src/lib/site/lockup.css is keyed to this) and its bar colours.
+	html = sub(html, /<html lang="en">/, '<html lang="en" data-site="lockup">', 'html tag', file);
+	html = sub(html, /(<meta name="theme-color" content=")#fbfaf6(" media="\(prefers-color-scheme: light\)")/, '$1#ffffff$2', 'light theme-color', file);
+	html = sub(html, /(<meta name="theme-color" content=")#211e18(" media="\(prefers-color-scheme: dark\)")/, '$1#1c1d1f$2', 'dark theme-color', file);
 	// The pages that set their own title and description (the privacy page) keep them.
 	const own = /<title>(?!PDF Workspace)/.test(html);
 	if (!own) {
@@ -80,5 +95,19 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 manifest.name = campaign.name;
 manifest.short_name = campaign.name;
 manifest.description = campaign.description;
+manifest.background_color = '#f3f4f5';
+manifest.theme_color = '#ffffff';
 writeFileSync(manifestPath, JSON.stringify(manifest, null, '\t') + '\n');
+for (const name of [
+	'favicon.svg',
+	'favicon-32.png',
+	'apple-touch-icon.png',
+	'icon-192.png',
+	'icon-512.png',
+	'icon-maskable-192.png',
+	'icon-maskable-512.png',
+	'og.png'
+])
+	copyFileSync(join(assets, name), join(build, name));
+
 console.log(`site-meta: ${n} pages and the manifest now carry the ${campaign.name} wording`);
