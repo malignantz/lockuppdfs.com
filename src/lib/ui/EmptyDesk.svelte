@@ -3,6 +3,7 @@
 	import Button from './Button.svelte';
 	import Icon from './Icon.svelte';
 	import type { IconName } from './icons';
+	import { campaign } from '../site/site';
 
 	/**
 	 * The empty state. The whole desk (the window) is the drop target while this
@@ -94,6 +95,12 @@
 
 <section class="desk" class:dragging aria-labelledby="empty-title">
 	<div class="stage">
+		{#if campaign}
+			<aside class="pitch" aria-label="About this site">
+				<h2 class="pitch-heading">{campaign.pitch.heading}</h2>
+				<p class="pitch-body">{campaign.pitch.body}</p>
+			</aside>
+		{/if}
 		{#if top}{@render top()}{/if}
 		<div class="sheets" class:hidden={!!newWork} aria-hidden="true">
 			<div class="sheet s1"></div>
@@ -193,6 +200,31 @@
 		max-width: 56rem;
 		/* Optical centre sits a little above the geometric one. */
 		margin-top: -2vh;
+	}
+
+	/* ---------- Campaign pitch (only on the LockUpPDFs build) ---------- */
+
+	.pitch {
+		max-width: 36rem;
+		margin-bottom: var(--s-4);
+		padding-bottom: var(--s-3);
+		border-bottom: 1px solid var(--line);
+	}
+
+	.pitch-heading {
+		font-family: var(--font-serif);
+		font-weight: 500;
+		font-size: 1.25rem;
+		line-height: 1.25;
+		color: var(--ink);
+	}
+
+	.pitch-body {
+		margin-top: var(--s-1);
+		font-size: var(--text-caption);
+		line-height: 1.5;
+		color: var(--ink-soft);
+		text-wrap: balance;
 	}
 
 	/* ---------- Sheets illustration ---------- */

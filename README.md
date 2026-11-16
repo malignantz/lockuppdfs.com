@@ -29,6 +29,22 @@ npm run build      # static site in build/
 npx wrangler deploy  # after a build: Cloudflare Worker, static assets only
 ```
 
+## Two sites from one codebase
+
+The same app is built twice. `VITE_SITE=lockup` at build time makes the campaign
+site (LockUpPDFs.com): its own title, description and share tags in the static HTML,
+its name in the header, a short pitch on the start page, and a quiet donation ask after
+a download. Without it you get the plain site, pdf.garrettholmes.com, unchanged.
+All campaign wording and the charity links live in `src/lib/site/site.ts` and nowhere else.
+
+```sh
+npm run build          # plain site into build/
+npm run build:lockup   # campaign site into build-lockup/
+npx wrangler deploy                                  # plain site (wrangler.jsonc)
+npm run deploy:lockup                                # builds, then deploys wrangler.lockup.jsonc
+E2E_PORT=4411 npx playwright test --project=lockup   # only the campaign specs (tests/e2e/lockup/)
+```
+
 ## How it works
 
 See [the plan](docs/plans/plan-2026-11-09.md) for architecture and scope, and

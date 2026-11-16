@@ -1,0 +1,16 @@
+// The campaign site (LockUpPDFs.com): the same app built with VITE_SITE=lockup.
+// A second assets-only Worker, so the plain site's Worker is never touched.
+// Deploy: `npm run deploy:lockup` (builds into build-lockup/, then deploys with this file).
+{
+	"name": "lockuppdfs",
+	"compatibility_date": "2026-11-01",
+	"assets": {
+		"directory": "./build-lockup",
+		"html_handling": "auto-trailing-slash",
+		"not_found_handling": "404-page"
+	},
+	"workers_dev": true,
+	// Add the custom domain when the site is ready to go live:
+	// "routes": [{ "pattern": "lockuppdfs.com", "custom_domain": true }],
+	"preview_urls": false
+}
