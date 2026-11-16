@@ -1,8 +1,8 @@
 # StopPDFs campaign: resume notes (2026-11-15)
 
 Status: **idea agreed in outline, nothing built.** This file is the starting point for a fresh
-session. Decisions that are still Garrett's are listed under "Open decisions"; the steps that
-need his hands are Tasks in Notion, not here.
+session. Decisions that are still Garrett's are listed under "Open decisions". Nothing is
+committed yet, so no Notion Tasks exist for it; create them once he decides to go ahead.
 
 ## The idea in one paragraph
 
