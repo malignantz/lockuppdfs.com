@@ -9,8 +9,7 @@
 		"html_handling": "auto-trailing-slash",
 		"not_found_handling": "404-page"
 	},
-	"workers_dev": true,
-	// Add the custom domain when the site is ready to go live:
-	// "routes": [{ "pattern": "lockuppdfs.com", "custom_domain": true }],
+	"workers_dev": false,
+	"routes": [{ "pattern": "lockuppdfs.com", "custom_domain": true }],
 	"preview_urls": false
 }
