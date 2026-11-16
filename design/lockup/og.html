@@ -1,0 +1,88 @@
+<!doctype html>
+<!-- LockUpPDFs share image (1200x630). Rendered to og.png by scripts/make-lockup-art.mjs. -->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<style>
+			@font-face {
+				font-family: 'Lockup Display';
+				src: url(anton-subset.woff2) format('woff2');
+			}
+
+			* {
+				margin: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				width: 1200px;
+				height: 630px;
+				overflow: hidden;
+				font-family: 'Lockup Display', Impact, sans-serif;
+				color: #f4efe6;
+				background:
+					radial-gradient(44rem 30rem at 82% 46%, rgb(255 107 26 / 0.2), transparent 70%),
+					repeating-linear-gradient(90deg, transparent 0 46px, rgb(244 239 230 / 0.035) 46px 52px),
+					#0d0d0c;
+			}
+
+			.frame {
+				position: absolute;
+				inset: 0;
+				display: grid;
+				grid-template-columns: 1fr 430px;
+				align-items: center;
+				padding: 48px 48px 48px 72px;
+			}
+
+			h1 {
+				font-weight: 400;
+				font-size: 212px;
+				line-height: 0.84;
+				letter-spacing: 0.005em;
+			}
+
+			.tag {
+				margin-top: 26px;
+				font-size: 46px;
+				line-height: 1.02;
+				letter-spacing: 0.012em;
+				text-transform: uppercase;
+			}
+
+			.tag em {
+				font-style: normal;
+				color: #ff6b1a;
+			}
+
+			.url {
+				display: inline-block;
+				margin-top: 30px;
+				padding: 8px 14px 6px;
+				background: #ff6b1a;
+				color: #0d0d0c;
+				font-size: 34px;
+				letter-spacing: 0.04em;
+				line-height: 1;
+				transform: rotate(-2deg);
+				transform-origin: left center;
+			}
+
+			.art {
+				width: 430px;
+				height: 430px;
+				filter: drop-shadow(0 20px 50px rgb(255 107 26 / 0.3));
+			}
+		</style>
+	</head>
+	<body>
+		<div class="frame">
+			<div>
+				<h1>LOCK UP<br />PDFs.</h1>
+				<p class="tag">Free PDF tools.<br /><em>PDF files belong behind bars.</em></p>
+				<p class="url">LOCKUPPDFS.COM</p>
+			</div>
+			<img class="art" src="icon.svg" alt="" />
+		</div>
+	</body>
+</html>

@@ -3,9 +3,10 @@
 	import Mark from './Mark.svelte';
 	import { topbar } from './topbar.svelte';
 	import { campaign } from '../site/site';
+	import LockupIcon from '../site/LockupIcon.svelte';
 </script>
 
-<header class="topbar">
+<header class="topbar" class:lockup-theme={!!campaign} class:lk={!!campaign}>
 	<a
 		class="wordmark"
 		href="/"
@@ -16,8 +17,8 @@
 			topbar.home();
 		}}
 	>
-		<Mark size={26} />
-		<span class="name" aria-hidden="true">{#if campaign}<span class="pdf">{campaign.name}</span>{:else}<span class="pdf">pdf</span><span class="host">.garrettholmes.com</span>{/if}</span>
+		{#if campaign}<LockupIcon size={30} simple />{:else}<Mark size={26} />{/if}
+		<span class="name" aria-hidden="true">{#if campaign}<span class="lk-name">Lock<span class="lk-up">Up</span><span class="lk-pdfs">PDFs</span></span>{:else}<span class="pdf">pdf</span><span class="host">.garrettholmes.com</span>{/if}</span>
 	</a>
 
 	<div class="actions">
@@ -69,6 +70,40 @@
 
 	.host {
 		color: var(--ink-soft);
+	}
+
+	/* ---------- LockUpPDFs (campaign build): the poster's black bar and display face ---------- */
+
+	.lk {
+		background: var(--lk-black);
+		border-bottom-color: var(--lk-line);
+	}
+
+	.lk .wordmark {
+		gap: 8px;
+	}
+
+	.lk-name {
+		font-family: var(--font-display);
+		font-weight: 400;
+		font-size: 1.375rem;
+		letter-spacing: 0.015em;
+		text-transform: uppercase;
+		color: var(--lk-ink);
+	}
+
+	.lk-up {
+		margin-left: 0.18em;
+	}
+
+	.lk-pdfs {
+		margin-left: 0.18em;
+		color: var(--lk-orange);
+		text-transform: none;
+	}
+
+	.lk .local {
+		border-color: var(--lk-line);
 	}
 
 	.actions {

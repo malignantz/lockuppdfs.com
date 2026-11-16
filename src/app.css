@@ -136,6 +136,54 @@
 	--shadow-float: 0 2px 6px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.5);
 }
 
+/*
+ * LockUpPDFs ("Behind bars"): the campaign build's poster palette. Only campaign markup
+ * (rendered when VITE_SITE=lockup) carries the .lockup-theme class, so the plain site never
+ * matches these rules. It redeclares the app tokens too, so shared components inside a
+ * campaign surface (the top bar's buttons, the Home cards) follow it.
+ * The display face is injected into the campaign build's pages by scripts/site-meta.mjs.
+ */
+.lockup-theme {
+	color-scheme: dark;
+
+	--lk-black: #0d0d0c;
+	--lk-raise: #171614;
+	--lk-ink: #f4efe6;
+	--lk-soft: #b4ada2;
+	--lk-line: #2e2b27;
+	--lk-orange: #ff6b1a;
+	--lk-orange-hi: #ff8a47;
+	--lk-paper: #f4efe6;
+	--lk-paper-ink: #0d0d0c;
+	--lk-paper-soft: #4d483f;
+	--font-display: 'Lockup Display', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Franklin Gothic Heavy', sans-serif;
+
+	--desk: var(--lk-black);
+	--desk-deep: #000000;
+	--surface: var(--lk-raise);
+	--sheet: #ffffff;
+	--ink: var(--lk-ink);
+	--ink-soft: var(--lk-soft);
+	--line: var(--lk-line);
+	--accent: var(--lk-orange);
+	--accent-ink: var(--lk-black);
+	--ok: #9db894;
+	--danger: var(--lk-orange);
+	--hover: color-mix(in srgb, var(--ink) 8%, transparent);
+	--press: color-mix(in srgb, var(--ink) 14%, transparent);
+	--accent-hover: var(--lk-orange-hi);
+	--line-strong: color-mix(in srgb, var(--line) 45%, var(--ink-soft));
+	--mark-stroke: var(--desk);
+	--mark-back: var(--ink-soft);
+
+	color: var(--ink);
+}
+
+.lockup-theme :focus-visible {
+	outline: 3px solid var(--lk-ink);
+	outline-offset: 3px;
+}
+
 /* Touch: 48px minimum targets */
 @media (pointer: coarse) {
 	:root {
