@@ -43,7 +43,10 @@ npm run build:lockup   # campaign site into build-lockup/
 npx wrangler deploy                                  # plain site (wrangler.jsonc)
 npm run deploy:lockup                                # builds, then deploys wrangler.lockup.jsonc
 E2E_PORT=4411 npx playwright test --project=lockup   # only the campaign specs (tests/e2e/lockup/)
+npm run release        # check, unit tests, then build and deploy both sites
 ```
+
+Release with `npm run release` so a fix never reaches one site and not the other.
 
 ## How it works
 

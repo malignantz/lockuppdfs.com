@@ -103,6 +103,8 @@ test('the download completes on its own, with the note shown only afterwards', a
 
 test('the privacy page explains the donation links', async ({ page }) => {
 	await page.goto('/privacy');
+	await expect(page.locator('body')).not.toContainText('pdf.garrettholmes.com');
+	await expect(page.locator('main code', { hasText: 'lockuppdfs.com' })).toBeVisible();
 	const section = page.locator('#donation-links');
 	await expect(section).toBeVisible();
 	await expect(section).toContainText('not connected to either charity');

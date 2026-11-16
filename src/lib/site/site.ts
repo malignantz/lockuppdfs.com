@@ -45,5 +45,8 @@ const lockup: Campaign = {
 	}
 };
 
+// The host this build is served on, for pages that name it (the privacy page).
+export const SITE_HOST = SITE_ID === 'lockup' ? 'lockuppdfs.com' : 'pdf.garrettholmes.com';
+
 // null on the plain site: every campaign surface renders nothing.
 export const campaign: Campaign | null = SITE_ID === 'lockup' ? lockup : null;

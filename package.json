@@ -40,7 +40,8 @@
 		"bilevel:measure": "node --experimental-transform-types --no-warnings --import ./tools/survey/register.mjs tools/bilevel/measure.ts",
 		"bilevel:engine": "node --experimental-transform-types --no-warnings --import ./tools/survey/register.mjs tools/bilevel/engine-run.ts",
 		"build:lockup": "VITE_SITE=lockup npm run build",
-		"deploy:lockup": "npm run build:lockup && npx wrangler deploy --config wrangler.lockup.jsonc"
+		"deploy:lockup": "npm run build:lockup && npx wrangler deploy --config wrangler.lockup.jsonc",
+		"release": "npm run check && npm test && npm run build && npx wrangler deploy && npm run deploy:lockup"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.65.0",

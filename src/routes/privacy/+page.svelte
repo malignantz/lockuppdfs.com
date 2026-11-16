@@ -1,15 +1,15 @@
 <script lang="ts">
 	import Icon from '#lib/ui/Icon.svelte';
-	import { campaign } from '../../lib/site/site';
+	import { campaign, SITE_HOST } from '../../lib/site/site';
 
 	const repo = 'https://github.com/malignantz/pdf.garrettholmes.com';
 </script>
 
 <svelte:head>
-	<title>How your files stay on this device · pdf.garrettholmes.com</title>
+	<title>How your files stay on this device · {SITE_HOST}</title>
 	<meta
 		name="description"
-		content="How pdf.garrettholmes.com keeps your files on your device, and how to check it yourself."
+		content="How {SITE_HOST} keeps your files on your device, and how to check it yourself."
 	/>
 </svelte:head>
 
@@ -118,7 +118,7 @@
 			<li>
 				<strong>Watch the network.</strong> Open your browser's developer tools (F12, or right-click and choose
 				Inspect), select the <em>Network</em> tab, then add and export a file. Every request goes to
-				<code>pdf.garrettholmes.com</code>, and none of them carry your file.
+				<code>{SITE_HOST}</code>, and none of them carry your file.
 			</li>
 			<li>
 				<strong>Turn the network off.</strong> Load the site once, then switch on airplane mode or unplug. Open a
