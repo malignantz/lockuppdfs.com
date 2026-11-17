@@ -787,6 +787,15 @@
 			grid-column: 1;
 		}
 
+		/* The buttons span both rows; keep lead and note together in the middle. */
+		.give-lead {
+			align-self: end;
+		}
+
+		.give-note {
+			align-self: start;
+		}
+
 		.give-links {
 			grid-column: 2;
 			grid-row: 1 / span 2;
