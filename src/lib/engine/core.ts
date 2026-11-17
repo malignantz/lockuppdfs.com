@@ -47,7 +47,8 @@ import {
 	stripJpegMetadata,
 	type Orientation
 } from './images';
-import { discardMupdf, isWasmFault, mupdf as loadMupdf, mupdfLoaded, type Mupdf } from './mupdf';
+import type * as MU from 'mupdf';
+import { discardMupdf, isWasmFault, mupdf as loadMupdf, mupdfLoaded, rethrowFault, type Mupdf } from './mupdf';
 import { assemble } from './assemble';
 import { hasGenerationConflict, listPages } from './intake';
 import { DAMAGED_LOCKED_MESSAGE, declinedByName, declinedMessage, limitsSet, mentionsEncrypt, openNote, parseLimits } from './limits';
@@ -64,7 +65,7 @@ import { libdeflate, libdeflateZlib } from './libdeflate';
 import { dumpStreams, isSigned, nativeDeflate, packStreams, type Deflater } from './pack';
 import { TextDocs, pageTextOf } from './page-text';
 import { NEED_BYTES } from './protocol';
-import { scannedPagesOf } from './ocr/eligible';
+import { checkScanPage, imageCandidates, scannedPagesOf } from './ocr/eligible';
 import { addLayers, keyOf, readScans, throwIfCancelled, verifyTextLayer, type OcrBackend, type OcrTrace, type PageOutcome, type ScanReading } from './ocr/stage';
 import { ScanPageReader } from './ocr/single';
 import type { WrittenWord } from './ocr/layer';
@@ -173,8 +174,35 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 	const textDocs = new TextDocs(2);
 	/** Engine.readScanPage: its OCR workers, started on first use. */
 	const scanReader = assets.ocr ? new ScanPageReader(assets.ocr, debug) : null;
-	/** Eligible pages per source, for Engine.readScanPage. */
-	const scanEligible = new Map<string, Promise<Set<number>>>();
+	/**
+	 * Engine.readScanPage's eligibility, page by page (the rule of scannedPagesOf: a qpdf
+	 * image candidate that MuPDF's check accepts), so a very long file is not listed
+	 * whole to read one page. qpdf's candidates per source, MuPDF's verdict per page.
+	 */
+	const scanCandidates = new Map<string, Promise<Set<number>>>();
+	const scanVerdicts = new Map<string, boolean>();
+	async function scanQualifies(m: Mupdf, doc: MU.Document, source: Source, bytes: Uint8Array | undefined, pageIndex: number): Promise<boolean> {
+		const key = `${source.id}:${pageIndex}`;
+		const known = scanVerdicts.get(key);
+		if (known !== undefined) return known;
+		let cands = scanCandidates.get(source.id);
+		if (!cands) {
+			if (!bytes) throw new EngineError('internal', NEED_BYTES);
+			cands = imageCandidates(qpdf, bytes, source.pages).then((c) => new Set(c));
+			scanCandidates.set(source.id, cands);
+			cands.catch(() => scanCandidates.delete(source.id));
+		}
+		let ok = false;
+		if ((await cands).has(pageIndex) && pageIndex < doc.countPages()) {
+			try {
+				ok = checkScanPage(m, doc, pageIndex).eligible;
+			} catch (e) {
+				rethrowFault(e);
+			}
+		}
+		scanVerdicts.set(key, ok);
+		return ok;
+	}
 
 	async function checkStructure(bytes: Uint8Array, what: string) {
 		const res = await qpdf.run({ args: ['--check', '/c.pdf'], inputs: { '/c.pdf': bytes } });
@@ -455,14 +483,7 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 				const bytes = source.bytes instanceof Uint8Array ? source.bytes : undefined;
 				const doc = textDocs.get(m, source.id, bytes);
 				if (!doc) throw new EngineError('internal', NEED_BYTES);
-				let eligible = scanEligible.get(source.id);
-				if (!eligible) {
-					if (!bytes) throw new EngineError('internal', NEED_BYTES);
-					eligible = scannedPagesOf(qpdf, deps.mupdf, bytes, source.pages).then((p) => new Set(p));
-					scanEligible.set(source.id, eligible);
-					eligible.catch(() => scanEligible.delete(source.id));
-				}
-				if (!(await eligible).has(pageIndex)) return none;
+				if (!(await scanQualifies(m, doc, source, bytes, pageIndex))) return none;
 				const t = now();
 				// The document may have been dropped from textDocs while waiting: open it again only with bytes.
 				const live = textDocs.get(m, source.id, bytes);

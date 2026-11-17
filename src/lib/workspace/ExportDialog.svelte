@@ -16,6 +16,7 @@
 	import WatermarkPreview from './WatermarkPreview.svelte';
 	import { exportForm } from './export-form.svelte';
 	import { OCR_HINT, OCR_LABEL, countScanned, isDesktop, ocrCapNotice, ocrSummary } from './ocr-option';
+	import { scanReader } from '../editor/scan-reader.svelte';
 	import { BILEVEL_HINT, BILEVEL_LABEL, bilevelCandidates, bilevelSummary, firstPreview, type PreviewImages } from './bilevel-option';
 	import { PRINT_CAP_LABEL, countOversized, printCapHint, printCapLine } from './print-cap-option';
 	import { progressFraction, progressSample, progressText } from './export-progress';
@@ -495,6 +496,11 @@
 		);
 		if (!built.ok) return;
 		const options = mkPictures ? pictureExportOptions(built.options) : built.options;
+		// Pages the editor already read in the background are not read again (same reading, same checks after).
+		if (options.ocr) {
+			const known = scanReader().known();
+			if (known.length) options.ocrKnown = known;
+		}
 		const inputBytes = plan.inputBytes;
 		// Said on the result of a PDF or split export: the limits of the files its pages came from are gone.
 		const limitsLine = removedLine(plan.limits);
@@ -518,6 +524,8 @@
 			timeLeft?.update(clock, sample);
 			progress = p;
 		};
+		// The background reading of scans waits while the export runs.
+		scanReader().hold('export', true);
 		try {
 			const s = store.state;
 			const sources = [...s.sources];
@@ -641,6 +649,7 @@
 			progress = null;
 			step = null;
 			timeLeft = null;
+			scanReader().hold('export', false);
 		}
 	}
 

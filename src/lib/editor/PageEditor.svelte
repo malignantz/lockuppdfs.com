@@ -44,7 +44,10 @@
 	import { stampForPage } from './copy';
 	import { defaultStroke, finishStroke, penBox, reboxPatch, type Pt } from './pen';
 	import { requestBlanks, snapEligible, snappedText, snappedTick } from './snap-cache';
-	import { pageTextOf, textWarm } from './page-text.svelte';
+	import { pageTextOf, textWarm, type PageTextState } from './page-text.svelte';
+	import { scanReader } from './scan-reader.svelte';
+	import { describeSeconds } from '../workspace/time-left';
+	import Progress from '../ui/Progress.svelte';
 	import { boundsOf, copyText, crossSize, selectionRects, selectionText, shownLayout, wordAtEnd, wordNear } from './text-select';
 	import Spinner from '../ui/Spinner.svelte';
 	import {
@@ -512,10 +515,34 @@
 	let armed = $state<Tool | null>(null);
 	/** Select text is wanted: the tool when no other is armed (see selectChosen). */
 	let selectOn = $state(selectChosen ?? finePointer());
+	/** Select text was chosen by hand (not only on by default). */
+	let selectPicked = $state(selectChosen === true);
 	/** The page's words, read in the engine worker once per page (after the tool is first armed, or once MuPDF is loaded). */
-	const textState = $derived(
+	const ownText = $derived(
 		page && source && (armed === 'highlight' || (selectOn && !armed && !cropMode) || textWarm()) ? pageTextOf(app.engine, source, page.pageIndex) : null
 	);
+	// ------------------------------------------------------------ scans read in the background (desktop)
+	const scan = scanReader();
+	$effect(() => {
+		const id = source?.kind === 'pdf' ? source.id : null;
+		const at = page?.pageIndex ?? 0;
+		untrack(() => scan.view(id, at));
+	});
+	$effect(() => () => untrack(() => scan.view(null)));
+	/** What the background reader knows of this page (a scan without text it reads, desktop only). */
+	const scanView = $derived(page && source?.kind === 'pdf' ? scan.page(source.id, page.pageIndex) : null);
+	/**
+	 * The words offered: the file's own, or, on a scan without text, those read from its
+	 * picture once ready ('reading' until then; no words if none could be read).
+	 */
+	const textState = $derived.by<PageTextState | null>(() => {
+		const t = ownText;
+		if (!t || t.status !== 'ready' || t.text.words.length || !scanView || scanView.state === 'none') return t;
+		if (scanView.state !== 'done') return { status: 'reading' };
+		return scanView.text?.words.length ? { status: 'ready', text: scanView.text, scanned: true } : t;
+	});
+	/** This page's words are being read from its picture. */
+	const scanReading = $derived(textState?.status === 'reading');
 	/** True / false once known; null while the words are being read. */
 	const pageHasText = $derived(
 		textState?.status === 'ready' ? textState.text.words.length > 0 : textState?.status === 'failed' ? false : null
@@ -544,6 +571,8 @@
 	 * page has words. A drag from a word selects words; nothing is written to the page.
 	 */
 	const selecting = $derived(selectOn && !armed && !cropMode && pageHasText === true);
+	/** The Select text tool shows as on: selecting, or chosen by hand on a page whose words are still being read. */
+	const selectShownOn = $derived(selecting || (selectPicked && selectOn && !armed && !cropMode && scanReading));
 	let armedAsset = $state.raw<Asset | null>(null);
 	let padOpen = $state(false);
 	let padKind = $state<'signature' | 'initials'>('signature');
@@ -597,16 +626,18 @@
 
 	/** The Select text tool: on (putting away any other tool), or off when it is the active tool. */
 	function pickSelect() {
-		if (selecting) {
+		if (selecting || (selectPicked && selectOn && !armed && !cropMode && scanReading)) {
 			selectOn = false;
 			selectChosen = false;
+			selectPicked = false;
 			announce('Select text put away.');
 			return;
 		}
 		disarm();
 		selectOn = true;
 		selectChosen = true;
-		const msg = pageHasText === false ? 'This page has no selectable text.' : SELECT_HINT;
+		selectPicked = true;
+		const msg = pageHasText === false ? 'This page has no selectable text.' : scanReading ? READING_PAGE : SELECT_HINT;
 		showNote(msg);
 		announce(msg);
 	}
@@ -1010,6 +1041,33 @@
 		}
 		const t = setTimeout(() => (textSlow = true), 300);
 		return () => clearTimeout(t);
+	});
+
+	// ------------------------------------------------------------ waiting for a scan's words
+	const READING_PAGE = 'Reading the text on this page…';
+	/** A text tool is chosen on a page whose words are being read from its picture: say so in the tool's bar. */
+	const scanWaitShown = $derived(scanReading && (textArmed || (selectPicked && selectOn && !armed && !cropMode)));
+	/** The time, ticking once a second while the wait is shown (for the time left). */
+	let clock = $state(performance.now());
+	$effect(() => {
+		if (!scanWaitShown) return;
+		clock = performance.now();
+		const t = setInterval(() => (clock = performance.now()), 1000);
+		return () => clearInterval(t);
+	});
+	const scanWait = $derived(scanWaitShown && page && source ? scan.wait(source.id, page.pageIndex, clock) : null);
+	/** "About 20 seconds left for this page", once a page has been timed (nothing is guessed). */
+	const scanLeft = $derived(scanWait?.ms != null ? `${describeSeconds(scanWait.ms / 1000)} for this page` : null);
+	// The reading found no words while Select text was chosen: say what the page is, as before.
+	let wasReading = false;
+	$effect(() => {
+		const r = scanReading;
+		const chosen = untrack(() => selectPicked && selectOn && !armed);
+		if (wasReading && !r && chosen && pageHasText === false) {
+			showNote('This page is a scan with no selectable text.');
+			announce('This page is a scan with no selectable text.');
+		}
+		wasReading = r;
 	});
 
 	// ------------------------------------------------------------ selection
@@ -1662,7 +1720,7 @@
 	let moreOpen = $state(false);
 	let moreIndex = $state(0);
 	/** A tool from the sheet that is armed: the More slot shows it. */
-	const armedMore = $derived(MORE_TOOLS.find((t) => t.id === armed || (t.id === 'select' && selecting)) ?? null);
+	const armedMore = $derived(MORE_TOOLS.find((t) => t.id === armed || (t.id === 'select' && selectShownOn)) ?? null);
 	const moreLabel = $derived(armedMore ? `${armedMore.label}, armed. More tools` : 'More tools');
 
 	const moreItems = () => (moreMenu ? [...moreMenu.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')] : []);
@@ -1786,7 +1844,7 @@
 				type="button"
 				class="tool"
 				class:in-more={!PHONE_BAR.has(t.id)}
-				aria-pressed={armed === t.id || (t.id === 'crop' && cropMode) || (t.id === 'select' && selecting)}
+				aria-pressed={armed === t.id || (t.id === 'crop' && cropMode) || (t.id === 'select' && selectShownOn)}
 				data-tool={t.id}
 				onclick={(e) => toolClick(t.id, e)}
 			>
@@ -1819,7 +1877,7 @@
 							type="button"
 							role="menuitemradio"
 							class="more-item"
-							aria-checked={armed === t.id || (t.id === 'crop' && cropMode) || (t.id === 'select' && selecting)}
+							aria-checked={armed === t.id || (t.id === 'crop' && cropMode) || (t.id === 'select' && selectShownOn)}
 							tabindex={i === moreIndex ? 0 : -1}
 							data-tool={t.id}
 							onclick={(e) => pickMore(t.id, e)}
@@ -2006,6 +2064,10 @@
 			{/if}
 		</div>
 
+		{#if scanReading && !scanWaitShown && !cropMode}
+			<p class="scan-chip" data-testid="scan-chip"><Spinner size={12} /> Reading the text in this scan</p>
+		{/if}
+
 		{#if armed || note || echo}
 			<div class="hints">
 				{#if armed}<p class="armed-hint" role="status">{armedHint}</p>{/if}
@@ -2047,6 +2109,8 @@
 			<div class="selbar hlbar" role="toolbar" aria-label="Highlighter" tabindex="-1" onkeydown={hlbarKey}>
 				{#if scanNote}
 					<p class="hl-note" role="status" data-testid="hl-note">{scanNote}</p>
+				{:else if scanWaitShown}
+					{@render scanWaitNote()}
 				{:else if textSlow}
 					<p class="hl-note" role="status" data-testid="hl-reading"><Spinner size={14} /> Reading the page’s text…</p>
 				{/if}
@@ -2131,8 +2195,15 @@
 				{/if}
 				<IconButton icon="trash" label="Delete" shortcut="Delete" onclick={removeSelected} />
 			</div>
+		{:else if scanWaitShown && !armed}
+			<div class="selbar textbar scanbar" data-testid="scan-wait-bar">
+				{@render scanWaitNote()}
+			</div>
 		{:else if textSel && !armed}
 			<div class="selbar textbar" role="toolbar" aria-label="Selected text" data-testid="text-bar">
+				{#if textState?.status === 'ready' && textState.scanned}
+					<span class="scan-caution" data-testid="scan-caution">Read from a scan. Check it.</span>
+				{/if}
 				<span class="sel-count num">{textSelWords === 1 ? '1 word' : `${textSelWords} words`}</span>
 				<Button variant="quiet" icon="duplicate" aria-keyshortcuts={isMac() ? 'Meta+C' : 'Control+C'} onclick={() => void copySelection()}>{copied ? 'Copied' : 'Copy'}</Button>
 			</div>
@@ -2142,6 +2213,20 @@
 	<p id="stamp-help" class="sr">Arrow keys move it, Shift with arrows moves further, Delete removes it, Enter edits text.</p>
 	<div class="sr" aria-live="polite" data-testid="live">{live}</div>
 </div>
+
+{#snippet scanWaitNote()}
+	<div class="scan-wait" data-testid="scan-wait">
+		<p class="hl-note scan-line" role="status"><Spinner size={14} /> {READING_PAGE}</p>
+		{#if scanWait?.long}
+			<div class="scan-progress">
+				<Progress value={scanWait.total ? scanWait.done / scanWait.total : 0} label="Reading the text in this scan" />
+				<p class="scan-count num" data-testid="scan-count">
+					{scanWait.done} of {scanWait.total} {scanWait.total === 1 ? 'page' : 'pages'} read{#if scanLeft}<span> · {scanLeft}</span>{/if}
+				</p>
+			</div>
+		{/if}
+	</div>
+{/snippet}
 
 <SignaturePad bind:open={padOpen} kind={padKind} onpick={onPicked} {announce} />
 {#if selected}
@@ -2296,6 +2381,60 @@
 		position: absolute;
 		background: var(--text-selection);
 		mix-blend-mode: multiply;
+	}
+
+	/* A scan's words being read: a quiet note at the top left (no tool chosen), or in the tool's bar. */
+	.scan-chip {
+		position: absolute;
+		top: var(--s-3);
+		left: calc(var(--s-3) + var(--safe-left));
+		display: flex;
+		align-items: center;
+		gap: var(--s-1);
+		margin: 0;
+		padding: 2px var(--s-2);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--surface) 88%, transparent);
+		color: var(--ink-soft);
+		font-size: var(--text-caption);
+		pointer-events: none;
+		z-index: 2;
+	}
+
+	.scanbar {
+		min-width: min(360px, calc(100% - 2 * var(--s-3)));
+		justify-content: center;
+	}
+
+	.scan-wait {
+		display: grid;
+		gap: var(--s-1);
+		flex: 1 0 100%;
+		padding: var(--s-1) var(--s-2);
+	}
+
+	.scan-wait .scan-line {
+		padding: 0;
+		color: var(--ink);
+	}
+
+	.scan-progress {
+		display: grid;
+		gap: 2px;
+	}
+
+	.scan-count {
+		margin: 0;
+		color: var(--ink-soft);
+		font-size: var(--text-caption);
+		text-align: center;
+	}
+
+	.scan-caution {
+		padding: 0 var(--s-2);
+		color: var(--ink-soft);
+		font-size: var(--text-caption);
+		white-space: nowrap;
 	}
 
 	.sel-count {

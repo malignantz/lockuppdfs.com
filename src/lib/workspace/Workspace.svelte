@@ -33,6 +33,7 @@
 	import Spinner from '../ui/Spinner.svelte';
 	import { topbar } from '../ui/topbar.svelte';
 	import { exportForm, startNewJob } from './export-form.svelte';
+	import { scanReader } from '../editor/scan-reader.svelte';
 	import { play, snapshot } from './flip';
 	import { createIntake, type PasswordAsk } from './intake.svelte';
 	import { holdBusy } from '../ui/busy';
@@ -180,6 +181,13 @@
 		}
 		return [];
 	}
+
+	// Desktop: the text of scanned pages is read in the background as soon as they are
+	// added (editor/scan-reader.svelte.ts), so it can be selected in the editor.
+	$effect(() => {
+		const { sources, pages } = doc.state;
+		untrack(() => scanReader().sync(sources, pages));
+	});
 
 	// Announce every command, undo and redo in the live region.
 	let lastEvent: unknown = null;

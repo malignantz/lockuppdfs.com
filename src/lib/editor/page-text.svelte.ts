@@ -10,7 +10,10 @@ import type { Engine, PageText, Source } from '../core/types';
 
 export type PageTextState =
 	| { status: 'loading' }
-	| { status: 'ready'; text: PageText }
+	/** `scanned`: the words were read from the page's picture (editor/scan-reader.svelte.ts), not the file's own text. */
+	| { status: 'ready'; text: PageText; scanned?: boolean }
+	/** A scan without text whose words are being read in the background (the editor's state, never pageTextOf's). */
+	| { status: 'reading' }
 	/** The engine could not read the page's text. */
 	| { status: 'failed' };
 
