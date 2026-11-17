@@ -1,4 +1,4 @@
-/** The campaign build's start page: the "Behind bars" poster with the giving band. */
+/** The campaign build's start page: the "Booking photo" with the giving band and the rap sheet. */
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { test, expect } from '../fixtures';
@@ -14,31 +14,44 @@ test('on a 390x844 phone the first screen says what the site is, shows the butto
 	const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, baseURL });
 	const page = await ctx.newPage();
 	await page.goto('/');
-	await expect(page.locator('.art .lk-icon')).toBeInViewport({ ratio: 1 });
-	await expect(page.getByRole('heading', { level: 1, name: 'LOCK UP PDFs.' })).toBeInViewport({ ratio: 1 });
-	await expect(page.getByText('PDF files belong behind bars.')).toBeInViewport({ ratio: 1 });
+	const photo = page.getByRole('img', { name: /^A booking photo of a PDF document/ });
+	await expect(photo).toBeInViewport({ ratio: 1 });
+	await expect(page.getByRole('heading', { level: 1, name: 'PDFs. Locked up.' })).toBeInViewport({ ratio: 1 });
 	const statement = page.getByText('Free PDF tools. Combine, sign, shrink, convert.');
 	await expect(statement).toBeInViewport({ ratio: 1 });
 	const choose = page.getByRole('button', { name: 'Choose files' });
 	await expect(choose).toBeInViewport({ ratio: 1 });
+	const chipList = page.getByRole('list', { name: 'Popular tools' });
+	await expect(chipList).toBeInViewport({ ratio: 1 });
 	await expect(give(page)).toBeInViewport();
-	// Order: statement, then the button, then the tool chips and the reassurance.
+	// Order: photo, headline, statement, then the button, then the tool chips and the reassurance.
+	const p = (await photo.boundingBox())!;
+	const h = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
 	const s = (await statement.boundingBox())!;
 	const b = (await choose.boundingBox())!;
-	const chips = (await page.getByRole('list', { name: 'Popular tools' }).boundingBox())!;
+	const chips = (await chipList.boundingBox())!;
+	expect(p.y).toBeLessThan(h.y);
+	expect(h.y).toBeLessThan(s.y);
 	expect(s.y).toBeLessThan(b.y);
 	expect(b.y).toBeLessThan(chips.y);
 	// The main action: full column width, tall.
 	expect(b.width).toBeGreaterThanOrEqual(390 - 2 * 24);
 	expect(b.height).toBeGreaterThanOrEqual(60);
-	// Its colour is its own: not the orange of the tagline, not the off-white of the type.
+	// Police-tape yellow, and that colour is the button's alone on the page.
 	const bg = await choose.evaluate((el) => getComputedStyle(el).backgroundColor);
-	const tagline = await page.getByText('PDF files belong behind bars.').evaluate((el) => getComputedStyle(el).color);
-	const ink = await statement.evaluate((el) => getComputedStyle(el).color);
-	expect(bg).not.toBe(tagline);
-	expect(bg).not.toBe(ink);
-	// The statement is bright, not grey.
-	expect(ink).toBe('rgb(244, 239, 230)');
+	expect(bg).toBe('rgb(255, 210, 31)');
+	const others = await page.evaluate((yellow) => {
+		const hits: string[] = [];
+		for (const el of document.querySelectorAll('body *')) {
+			if (el.closest('.choose')) continue;
+			const cs = getComputedStyle(el);
+			if ([cs.backgroundColor, cs.color, cs.borderTopColor].includes(yellow)) hits.push(el.className.toString());
+		}
+		return hits;
+	}, bg);
+	expect(others, 'other elements in the button colour').toEqual([]);
+	// The statement is ink black, not grey.
+	expect(await statement.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(17, 17, 17)');
 	await expect(page.getByText('No account. Files never leave your device.')).toBeVisible();
 	await expect(page.getByText('or drop files here')).toBeHidden();
 	const noScroll = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
@@ -119,6 +132,18 @@ test('the campaign page never spells out the slang or names the owner', async ({
 	expect(text).not.toMatch(/pedo|paedo|garrett|holmes|partner|official/);
 });
 
+test('the board in the booking photo states the fee, not a charge, and the rap sheet numbers the tools', async ({ page }) => {
+	await page.goto('/');
+	const photo = page.getByRole('img', { name: /^A booking photo of a PDF document/ });
+	await expect(photo).toHaveAttribute('aria-label', /fee: \$0\.00/);
+	const board = (await photo.locator('text').allTextContents()).join(' ');
+	expect(board).toContain('FEE:');
+	expect(board).toContain('$0.00');
+	expect(board).not.toMatch(/charge/i);
+	await expect(page.getByRole('heading', { name: 'What you can do' })).toBeVisible();
+	await expect(page.locator('#features li').first()).toContainText('01');
+});
+
 test('works at 320 px wide with no sideways scroll, and the tool list still opens', async ({ page }) => {
 	await page.setViewportSize({ width: 320, height: 640 });
 	await page.goto('/');
@@ -137,6 +162,10 @@ test('the header names the campaign site, and the share tags and image are in th
 	expect(html).toContain('<meta property="og:title" content="LockUpPDFs');
 	expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
 	expect(html).toContain('<meta property="og:image" content="https://lockuppdfs.com/og.png" />');
+	// Wording with a dollar sign arrives whole (not read as a $0 backreference), and nothing leaks above the page.
+	expect(html).toContain('fee: &#36;0.00.');
+	expect(html).toMatch(/<html data-site="lockup"/);
+	expect(await page.evaluate(() => document.body.firstChild?.nodeType !== Node.TEXT_NODE || !document.body.firstChild.textContent?.trim())).toBe(true);
 	const og = await request.get('/og.png');
 	expect(og.ok()).toBe(true);
 	expect(og.headers()['content-type']).toContain('image/png');
@@ -155,6 +184,6 @@ test('same CSP, no-transform and a service worker that stays on this origin', as
 
 test('the forwards file reaches the campaign build and is not precached', () => {
 	const out = (f: string) => readFileSync(fileURLToPath(new URL(`../../../build-lockup/${f}`, import.meta.url)), 'utf8');
-	expect(out('_redirects')).toBe('/a / 302\n/b https://b.lockuppdfs.com/ 302\n/c https://c.lockuppdfs.com/ 302\n');
+	expect(out('_redirects')).toBe('/a https://a.lockuppdfs.com/ 302\n/b / 302\n/c https://c.lockuppdfs.com/ 302\n');
 	expect(out('_app/precache.json')).not.toContain('_redirects');
 });

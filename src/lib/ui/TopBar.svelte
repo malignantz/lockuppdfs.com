@@ -3,7 +3,7 @@
 	import Mark from './Mark.svelte';
 	import { topbar } from './topbar.svelte';
 	import { campaign } from '../site/site';
-	import LockupIcon from '../site/LockupIcon.svelte';
+	import LockupMark from '../site/LockupMark.svelte';
 </script>
 
 <header class="topbar" class:lockup-theme={!!campaign} class:lk={!!campaign}>
@@ -17,8 +17,8 @@
 			topbar.home();
 		}}
 	>
-		{#if campaign}<LockupIcon size={30} simple />{:else}<Mark size={26} />{/if}
-		<span class="name" aria-hidden="true">{#if campaign}<span class="lk-name">Lock<span class="lk-up">Up</span><span class="lk-pdfs">PDFs</span></span>{:else}<span class="pdf">pdf</span><span class="host">.garrettholmes.com</span>{/if}</span>
+		{#if campaign}<LockupMark size={30} />{:else}<Mark size={26} />{/if}
+		<span class="name" aria-hidden="true">{#if campaign}<span class="lk-name">{campaign.wordmark[0]}<span class="lk-tag">{campaign.wordmark[1]}</span></span>{:else}<span class="pdf">pdf</span><span class="host">.garrettholmes.com</span>{/if}</span>
 	</a>
 
 	<div class="actions">
@@ -72,38 +72,40 @@
 		color: var(--ink-soft);
 	}
 
-	/* ---------- LockUpPDFs (campaign build): the poster's black bar and display face ---------- */
+	/* ---------- LockUpPDFs (campaign build): paper bar, ink rule, the orange tag ---------- */
 
 	.lk {
-		background: var(--lk-black);
-		border-bottom-color: var(--lk-line);
+		background: var(--lk-card);
+		border-bottom: 3px solid var(--lk-ink);
 	}
 
 	.lk .wordmark {
-		gap: 8px;
+		gap: 9px;
 	}
 
 	.lk-name {
+		display: inline-flex;
+		align-items: center;
 		font-family: var(--font-display);
 		font-weight: 400;
-		font-size: 1.375rem;
-		letter-spacing: 0.015em;
+		font-size: 1.4375rem;
+		line-height: 1;
+		letter-spacing: 0.02em;
 		text-transform: uppercase;
 		color: var(--lk-ink);
 	}
 
-	.lk-up {
-		margin-left: 0.18em;
-	}
-
-	.lk-pdfs {
-		margin-left: 0.18em;
-		color: var(--lk-orange);
-		text-transform: none;
+	/* The same tag as the headline's second line, small. */
+	.lk-tag {
+		margin-left: 4px;
+		padding: 3px 5px 2px;
+		background: var(--lk-orange);
+		box-shadow: 2px 2px 0 var(--lk-ink);
+		transform: rotate(-2deg);
 	}
 
 	.lk .local {
-		border-color: var(--lk-line);
+		border-color: color-mix(in srgb, var(--lk-ink) 22%, transparent);
 	}
 
 	.actions {

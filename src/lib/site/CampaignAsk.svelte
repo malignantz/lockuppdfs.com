@@ -7,7 +7,7 @@
 
 	readAskState();
 	const ask = campaign?.ask ?? null;
-	const fee = campaign?.splash.fee ?? null;
+	const fee = campaign?.fee ?? null;
 </script>
 
 {#if ask && !askState.dismissed}
@@ -25,14 +25,16 @@
 {/if}
 
 <style>
-	/* The campaign's poster palette (black, off-white, one orange), as on the start page. */
+	/* A release slip in the campaign's palette: paper, an ink frame, the fee on an orange tag. */
 	.ask {
 		display: grid;
 		gap: var(--s-3);
 		padding: var(--s-4);
-		border-radius: 6px;
-		background: var(--lk-black);
+		border: 2px solid var(--lk-ink);
+		border-radius: 4px;
+		background: var(--lk-card);
 		color: var(--lk-ink);
+		box-shadow: 4px 4px 0 var(--lk-ink);
 	}
 
 	.fee {
@@ -41,25 +43,27 @@
 		justify-content: space-between;
 		gap: var(--s-3);
 		padding-bottom: var(--s-3);
-		border-bottom: 2px dashed var(--lk-line);
+		border-bottom: 2px dashed color-mix(in srgb, var(--lk-ink) 30%, transparent);
 		font-family: var(--font-display);
 		font-size: 1.25rem;
 		line-height: 1;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.05em;
 		text-transform: uppercase;
 	}
 
 	.amount {
-		padding: 3px 7px 2px;
+		padding: 4px 8px 3px;
 		background: var(--lk-orange);
-		color: var(--lk-black);
+		color: var(--lk-ink);
 		font-size: 1.5rem;
+		letter-spacing: 0.02em;
+		box-shadow: 2px 2px 0 var(--lk-ink);
 		transform: rotate(-3deg);
 	}
 
 	.lead {
-		color: var(--lk-ink);
-		font-weight: 600;
+		font-weight: 650;
+		line-height: 1.45;
 	}
 
 	.links {
@@ -72,7 +76,7 @@
 	}
 
 	.links li {
-		flex: 1 1 9rem;
+		flex: 1 1 12rem;
 	}
 
 	.links a,
@@ -88,14 +92,14 @@
 	.links a {
 		width: 100%;
 		padding: 0 var(--s-3);
-		background: var(--lk-orange);
-		color: var(--lk-black);
+		background: var(--lk-ink);
+		color: var(--lk-card);
 		font-weight: 800;
 		text-decoration: none;
 	}
 
 	.links a:hover {
-		background: var(--lk-orange-hi);
+		background: #2e2c29;
 	}
 
 	.note {
@@ -105,15 +109,16 @@
 	.dismiss {
 		justify-self: start;
 		padding: 0 var(--s-3);
-		border: 1px solid var(--lk-line);
+		border: 1.5px solid color-mix(in srgb, var(--lk-ink) 35%, transparent);
 		background: transparent;
 		color: var(--lk-ink);
 		font-family: inherit;
+		font-weight: 650;
 		cursor: pointer;
 	}
 
 	.dismiss:hover {
-		background: rgb(244 239 230 / 0.08);
+		border-color: var(--lk-ink);
 	}
 
 	@media (pointer: coarse) {

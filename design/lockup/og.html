@@ -1,88 +1,132 @@
 <!doctype html>
-<!-- LockUpPDFs share image (1200x630). Rendered to og.png by scripts/make-lockup-art.mjs. -->
+<!--
+	LockUpPDFs link preview, 1200 x 630. Rendered to design/lockup/og.png by
+	`node scripts/make-lockup-art.mjs`, which fills the {{...}} slots: the bundled
+	display face, the booking photo (src/lib/site/BookingPhoto.svelte, the same drawing
+	as the start page), the mark, and the words from src/lib/site/site.ts.
+-->
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<style>
 			@font-face {
 				font-family: 'Lockup Display';
-				src: url(anton-subset.woff2) format('woff2');
+				src: url(data:font/woff2;base64,{{FONT}}) format('woff2');
 			}
-
 			* {
 				margin: 0;
 				box-sizing: border-box;
 			}
-
+			html,
 			body {
 				width: 1200px;
 				height: 630px;
 				overflow: hidden;
-				font-family: 'Lockup Display', Impact, sans-serif;
-				color: #f4efe6;
-				background:
-					radial-gradient(44rem 30rem at 82% 46%, rgb(255 107 26 / 0.2), transparent 70%),
-					repeating-linear-gradient(90deg, transparent 0 46px, rgb(244 239 230 / 0.035) 46px 52px),
-					#0d0d0c;
 			}
-
-			.frame {
+			body {
+				--font-display: 'Lockup Display', Impact, sans-serif;
+				position: relative;
+				background: #f3f1ec;
+				color: #111;
+				font-family: system-ui, sans-serif;
+				-webkit-font-smoothing: antialiased;
+			}
+			/* A thick black frame round the card, like a tabloid box. */
+			body::after {
+				content: '';
 				position: absolute;
 				inset: 0;
-				display: grid;
-				grid-template-columns: 1fr 430px;
+				border: 10px solid #111;
+				pointer-events: none;
+			}
+			.copy {
+				position: absolute;
+				left: 64px;
+				top: 56px;
+				width: 560px;
+			}
+			.brand {
+				display: flex;
 				align-items: center;
-				padding: 48px 48px 48px 72px;
-			}
-
-			h1 {
-				font-weight: 400;
-				font-size: 212px;
-				line-height: 0.84;
-				letter-spacing: 0.005em;
-			}
-
-			.tag {
-				margin-top: 26px;
-				font-size: 46px;
-				line-height: 1.02;
-				letter-spacing: 0.012em;
+				gap: 12px;
+				font-family: var(--font-display);
+				font-size: 34px;
+				letter-spacing: 0.02em;
 				text-transform: uppercase;
 			}
-
-			.tag em {
-				font-style: normal;
-				color: #ff6b1a;
+			.brand svg {
+				width: 46px;
+				height: 46px;
 			}
-
-			.url {
-				display: inline-block;
-				margin-top: 30px;
-				padding: 8px 14px 6px;
-				background: #ff6b1a;
-				color: #0d0d0c;
-				font-size: 34px;
-				letter-spacing: 0.04em;
-				line-height: 1;
+			.brand b {
+				font-weight: 400;
+				margin-left: -2px;
+				padding: 3px 8px 1px;
+				background: #ff6a13;
+				box-shadow: 3px 3px 0 #111;
 				transform: rotate(-2deg);
+			}
+			h1 {
+				margin-top: 30px;
+				font-family: var(--font-display);
+				font-weight: 400;
+				font-size: 120px;
+				line-height: 0.92;
+				text-transform: uppercase;
+			}
+			h1 span {
+				display: block;
+			}
+			h1 .hi {
+				display: inline-block;
+				margin-top: 8px;
+				margin-left: -6px;
+				padding: 6px 16px 2px;
+				background: #ff6a13;
+				box-shadow: 8px 8px 0 #111;
+				transform: rotate(-1.2deg);
 				transform-origin: left center;
 			}
-
-			.art {
-				width: 430px;
-				height: 430px;
-				filter: drop-shadow(0 20px 50px rgb(255 107 26 / 0.3));
+			.line {
+				margin-top: 40px;
+				font-size: 33px;
+				font-weight: 700;
+				letter-spacing: -0.005em;
+			}
+			.host {
+				position: absolute;
+				left: 64px;
+				bottom: 50px;
+				font-family: var(--font-display);
+				font-size: 30px;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+			}
+			.photo {
+				position: absolute;
+				right: 60px;
+				top: 128px;
+				width: 520px;
+				border: 5px solid #111;
+				background: #e7e4dd;
+				box-shadow: 12px 12px 0 #111;
+				transform: rotate(1.8deg);
+			}
+			.photo svg {
+				display: block;
+				width: 100%;
+				height: auto;
+				font-family: var(--font-display);
 			}
 		</style>
 	</head>
 	<body>
-		<div class="frame">
-			<div>
-				<h1>LOCK UP<br />PDFs.</h1>
-				<p class="tag">Free PDF tools.<br /><em>PDF files belong behind bars.</em></p>
-				<p class="url">LOCKUPPDFS.COM</p>
-			</div>
-			<img class="art" src="icon.svg" alt="" />
+		<div class="copy">
+			<div class="brand">{{MARK}}<span>{{WORD_A}}</span><b>{{WORD_B}}</b></div>
+			<h1><span>{{HEAD_A}}</span><span class="hi">{{HEAD_B}}</span></h1>
+			<p class="line">{{LINE}}</p>
 		</div>
+		<p class="host">lockuppdfs.com</p>
+		<div class="photo">{{PHOTO}}</div>
 	</body>
 </html>

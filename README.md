@@ -33,13 +33,14 @@ npx wrangler deploy  # after a build: Cloudflare Worker, static assets only
 
 The same app is built twice. `VITE_SITE=lockup` at build time makes the campaign
 site (LockUpPDFs.com): its own title, description and share tags in the static HTML,
-its name and mark in the header, a poster start page with the donation links, and a quiet ask after
+its name and mark in the header, a booking-photo start page with the donation links, and a quiet ask after
 a download. Without it you get the plain site, pdf.garrettholmes.com, unchanged.
 All campaign wording and the charity links live in `src/lib/site/site.ts` and nowhere else.
-The campaign start page is a poster (`src/lib/site/LockupSplash.svelte`, palette under
-`.lockup-theme` in `src/app.css`) with the giving links on it. Its art lives in `design/lockup/`
-(mark, display face, share image source); run `node scripts/make-lockup-art.mjs` after changing
-it. `scripts/site-meta.mjs` copies the face, icons and `og.png` into the campaign build only, so
+The campaign start page is a booking photo of a PDF (`src/lib/site/LockupSplash.svelte` and
+`BookingPhoto.svelte`) with the giving links on it; its palette is under `.lockup-theme` and
+`html[data-site='lockup']` in `src/app.css` (the latter re-colours the workspace on that build).
+Its art lives in `design/lockup/` (mark, display face, share image source); run
+`node scripts/make-lockup-art.mjs` after changing the art or the words. `scripts/site-meta.mjs` copies the face, icons and `og.png` into the campaign build only, so
 in `vite dev` with `VITE_SITE=lockup` the headline shows in a fallback face.
 
 ```sh

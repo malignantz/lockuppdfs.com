@@ -137,45 +137,53 @@
 }
 
 /*
- * LockUpPDFs ("Behind bars"): the campaign build's poster palette. Only campaign markup
- * (rendered when VITE_SITE=lockup) carries the .lockup-theme class, so the plain site never
- * matches these rules. It redeclares the app tokens too, so shared components inside a
- * campaign surface (the top bar's buttons, the Home cards) follow it.
- * The display face is injected into the campaign build's pages by scripts/site-meta.mjs.
+ * LockUpPDFs ("Booking photo"): the campaign build's palette. Ink black, paper off-white,
+ * one jumpsuit orange (always under black type, never as text on paper) and one
+ * police-tape yellow kept for the start page's Choose files button alone.
+ *
+ * Campaign markup (rendered only when VITE_SITE=lockup) carries .lockup-theme; the
+ * campaign build's pages also carry <html data-site="lockup"> (scripts/site-meta.mjs),
+ * which re-colours the Desk tokens so the workspace sits on the same paper. The plain
+ * site has neither, so nothing here can reach it. The display face is injected into the
+ * campaign build's pages by scripts/site-meta.mjs.
  */
+:root[data-site='lockup'],
 .lockup-theme {
-	color-scheme: dark;
+	color-scheme: light;
 
-	--lk-black: #0d0d0c;
-	--lk-raise: #171614;
-	--lk-ink: #f4efe6;
-	--lk-soft: #b4ada2;
-	--lk-line: #2e2b27;
-	--lk-orange: #ff6b1a;
-	--lk-orange-hi: #ff8a47;
-	--lk-paper: #f4efe6;
-	--lk-paper-ink: #0d0d0c;
-	--lk-paper-soft: #4d483f;
+	--lk-ink: #111111;
+	--lk-soft: #4a4741;
+	--lk-paper: #f3f1ec;
+	--lk-card: #fcfbf8;
+	--lk-wall: #e7e4dd;
+	--lk-line: #d3cfc5;
+	--lk-orange: #ff6a13;
+	--lk-yellow: #ffd21f;
 	--font-display: 'Lockup Display', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Franklin Gothic Heavy', sans-serif;
 
-	--desk: var(--lk-black);
-	--desk-deep: #000000;
-	--surface: var(--lk-raise);
+	--desk: var(--lk-paper);
+	--desk-deep: var(--lk-wall);
+	--surface: var(--lk-card);
 	--sheet: #ffffff;
 	--ink: var(--lk-ink);
 	--ink-soft: var(--lk-soft);
 	--line: var(--lk-line);
-	--accent: var(--lk-orange);
-	--accent-ink: var(--lk-black);
-	--ok: #9db894;
-	--danger: var(--lk-orange);
-	--hover: color-mix(in srgb, var(--ink) 8%, transparent);
-	--press: color-mix(in srgb, var(--ink) 14%, transparent);
-	--accent-hover: var(--lk-orange-hi);
-	--line-strong: color-mix(in srgb, var(--line) 45%, var(--ink-soft));
-	--mark-stroke: var(--desk);
-	--mark-back: var(--ink-soft);
+	--accent: var(--lk-ink);
+	--accent-ink: #ffffff;
+	--accent-hover: #2b2a27;
+	--ok: #3d5638;
+	--danger: #9a3412;
+	--hover: color-mix(in srgb, var(--lk-ink) 6%, transparent);
+	--press: color-mix(in srgb, var(--lk-ink) 12%, transparent);
+	--line-strong: color-mix(in srgb, var(--lk-line) 45%, var(--lk-soft));
+	--mark-stroke: var(--lk-card);
+	--mark-back: var(--lk-soft);
+	--scrim: rgb(17 17 17 / 0.42);
+	--shadow-page: 0 1px 2px rgb(0 0 0 / 0.12), 0 4px 14px rgb(0 0 0 / 0.08);
+	--shadow-float: 0 2px 6px rgb(0 0 0 / 0.1), 0 12px 32px rgb(0 0 0 / 0.14);
+}
 
+.lockup-theme {
 	color: var(--ink);
 }
 

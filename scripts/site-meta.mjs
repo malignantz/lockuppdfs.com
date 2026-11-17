@@ -12,7 +12,7 @@ import { createServer } from 'vite';
 if (process.env.VITE_SITE !== 'lockup') process.exit(0);
 
 const build = fileURLToPath(new URL('../build-lockup/', import.meta.url));
-// The campaign's own art and display face (design/lockup/, made by scripts/make-lockup-art.mjs).
+// The campaign's own art and display face (design/lockup/; icons and og.png made by scripts/make-lockup-art.mjs).
 const art = fileURLToPath(new URL('../design/lockup/', import.meta.url));
 const ORIGIN = 'https://lockuppdfs.com';
 
@@ -26,8 +26,9 @@ const { campaign } = await server.ssrLoadModule('/src/lib/site/site.ts');
 await server.close();
 if (!campaign) throw new Error('site-meta: VITE_SITE=lockup but site.ts gave no campaign');
 
-const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-const escText = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+// $ is written as an entity too, so sub() below never reads wording such as "$0.00" as a backreference.
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/\$/g, '&#36;');
+const escText = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\$/g, '&#36;');
 
 function htmlFiles(dir) {
 	return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -42,7 +43,7 @@ function sub(html, re, to, what, file) {
 	return html.replace(re, (...m) => to.replace(/\$(\d)/g, (_, i) => m[Number(i)]));
 }
 
-const OG_ALT = 'An orange document behind cell bars with a padlock. LOCK UP PDFs. Free PDF tools.';
+const OG_ALT = campaign.share.alt;
 
 const share = [
 	`<meta property="og:type" content="website" />`,
@@ -78,7 +79,8 @@ copyFileSync(join(art, 'og.png'), join(build, 'og.png'));
 // The campaign's forwards (/a, /b, /c to the start pages kept for showing). Read by the
 // Workers static-assets server, outside _app/, so it is never precached.
 copyFileSync(join(art, '_redirects'), join(build, '_redirects'));
-const BLACK = '#0d0d0c';
+// The top bar's paper, for the browser chrome and the installed app's splash.
+const PAPER = '#fcfbf8';
 
 let n = 0;
 for (const file of htmlFiles(build)) {
@@ -86,7 +88,9 @@ for (const file of htmlFiles(build)) {
 	// The pages that set their own title and description (the privacy page) keep them.
 	const own = /<title>(?!PDF Workspace)/.test(html);
 	html = sub(html, /(<link rel="manifest"[^>]*>)/, `${fontHead}\n\t\t$1`, 'manifest link', file);
-	html = html.replace(/(<meta name="theme-color" content=")[^"]*(")/g, `$1${BLACK}$2`);
+	html = html.replace(/(<meta name="theme-color" content=")[^"]*(")/g, `$1${PAPER}$2`);
+	// The campaign palette for the whole page, the workspace included (src/app.css).
+	html = sub(html, /<html\b/, '<html data-site="lockup"', 'html tag', file);
 	if (!own) {
 		html = sub(html, /<title>[^<]*<\/title>/, `<title>${escText(campaign.title)}</title>`, 'title', file);
 		html = sub(
@@ -114,7 +118,7 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 manifest.name = campaign.name;
 manifest.short_name = campaign.name;
 manifest.description = campaign.description;
-manifest.theme_color = BLACK;
-manifest.background_color = BLACK;
+manifest.theme_color = PAPER;
+manifest.background_color = PAPER;
 writeFileSync(manifestPath, JSON.stringify(manifest, null, '\t') + '\n');
 console.log(`site-meta: ${n} pages and the manifest now carry the ${campaign.name} wording`);

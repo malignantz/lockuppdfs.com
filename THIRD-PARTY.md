@@ -46,7 +46,7 @@ WOFF2, from the [Fontsource](https://fontsource.org) npm packages (version 5.3.0
 
 ## Campaign display face (`design/lockup/`, LockUpPDFs build only)
 
-The headline face of the LockUpPDFs poster, top bar and share image. Copied into the
+The display face of the LockUpPDFs start page (headline, booking-photo board, labels), top bar and share image. Copied into the
 campaign build by `scripts/site-meta.mjs`; the plain site never ships or loads it.
 
 | Font | Files | License |

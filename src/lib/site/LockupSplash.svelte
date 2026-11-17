@@ -2,14 +2,15 @@
 	import type { Snippet } from 'svelte';
 	import Icon from '../ui/Icon.svelte';
 	import type { IconName } from '../ui/icons';
-	import LockupIcon from './LockupIcon.svelte';
+	import BookingPhoto from './BookingPhoto.svelte';
 	import type { Campaign } from './site';
 
 	/**
-	 * The campaign build's start page ("Behind bars"): a poster with the pun, the one
-	 * button, and the giving band, then the same tool list as the plain site. EmptyDesk
-	 * renders this instead of its own content on the LockUpPDFs build and keeps the
-	 * drag-and-drop handling; this component only shows it.
+	 * The campaign build's start page ("Booking photo"): a booking photo of a PDF, the
+	 * headline, the one button, the giving band as an evidence tag, then the same tool list
+	 * as the plain site, set as a rap sheet. EmptyDesk renders this instead of its own
+	 * content on the LockUpPDFs build and keeps the drag-and-drop handling; this component
+	 * only shows it.
 	 */
 	interface Props {
 		campaign: Campaign;
@@ -52,16 +53,24 @@
 		}
 		if (files.length) onfiles(files);
 	}
+
+	const pad = (n: number) => String(n).padStart(2, '0');
 </script>
 
-<section class="poster lockup-theme" class:dragging aria-labelledby="empty-title">
+<section class="lk lockup-theme" class:dragging aria-labelledby="empty-title">
 	<div class="hero">
-		<div class="art">
-			<LockupIcon size={240} animate />
-		</div>
+		<figure class="photo">
+			<BookingPhoto label={splash.photoLabel} placard={splash.placard} />
+		</figure>
+
 		<div class="copy">
-			<h1 id="empty-title" class="headline">{dragging ? splash.dropping : splash.headline}</h1>
-			<p class="tagline">{splash.tagline}</p>
+			<h1 id="empty-title" class="headline">
+				{#if dragging}
+					<span class="l1">{splash.dropping}</span>
+				{:else}
+					<span class="l1">{splash.headline[0]}</span>{' '}<span class="l2"><span>{splash.headline[1]}</span></span>
+				{/if}
+			</h1>
 			<p class="statement">{splash.statement}</p>
 			<div class="cta">
 				<button type="button" class="choose" onclick={() => pick()}>
@@ -94,12 +103,11 @@
 	</div>
 
 	<aside class="give" aria-labelledby="give-heading">
-		<div class="stub" aria-hidden="true">
-			<span class="fee-label">{splash.fee.label}</span>
-			<span class="fee-amount">{splash.fee.amount}</span>
+		<div class="give-head">
+			<span class="tag">{splash.give.tag}</span>
+			<h2 id="give-heading" class="give-heading">{splash.give.heading}</h2>
 		</div>
 		<div class="give-body">
-			<h2 id="give-heading" class="give-heading">{splash.give.heading}</h2>
 			<p class="give-lead">{splash.give.lead}</p>
 			<ul class="give-links">
 				{#each campaign.ask.links as link (link.href)}
@@ -118,127 +126,198 @@
 
 	{#if top}<div class="work">{@render top()}</div>{/if}
 
-	<div class="tools">
-		<h2 class="what">What you can do</h2>
-		<ul class="features" id="features">
-			{#each shown as f (f.title)}
+	<section class="record" aria-labelledby="what-title">
+		<div class="record-head">
+			<span class="tag">{splash.rapSheet}</span>
+			<h2 id="what-title" class="what">What you can do</h2>
+		</div>
+		<ol class="counts" id="features">
+			{#each shown as f, i (f.title)}
 				<li>
-					<Icon name={f.icon} size={22} />
+					<span class="count" aria-hidden="true"><span>{splash.count}</span>{pad(i + 1)}</span>
 					<span class="ftext"><strong>{f.title}</strong><span>{f.line}</span></span>
 				</li>
 			{/each}
-		</ul>
+		</ol>
 		<button type="button" class="more" class:open={more} aria-expanded={more} aria-controls="features" onclick={() => (more = !more)}>
 			<Icon name="chevron-right" size={18} />More it can do
 		</button>
+	</section>
 
+	<footer class="foot">
 		<p class="once">Add a file to start. Everything is in one place, and you download once at the end.</p>
-
 		<p class="proof">
 			<Icon name="shield-check" size={18} />Files stay on this device. This page cannot send them anywhere.
 			<a href="/privacy">How that is enforced</a>
 		</p>
-	</div>
+	</footer>
 </section>
 
 <style>
-	.poster {
+	/*
+	 * One column of content, 72rem at most, with the same gutter everywhere, so every
+	 * section starts on the same left edge. Rhythm between sections: 48, 64, 48.
+	 */
+	.lk {
+		--gutter: 16px;
+		--col: 72rem;
 		position: relative;
 		min-height: calc(100dvh - var(--bar-h) - var(--safe-top));
-		padding: var(--s-4) calc(var(--s-4) + var(--safe-right)) calc(var(--s-7) + var(--safe-bottom)) calc(var(--s-4) + var(--safe-left));
-		background:
-			radial-gradient(60rem 36rem at 50% -8rem, rgb(255 107 26 / 0.13), transparent 70%),
-			repeating-linear-gradient(90deg, transparent 0 46px, rgb(244 239 230 / 0.028) 46px 52px),
-			var(--lk-black);
+		padding: 0 0 calc(var(--s-7) + var(--safe-bottom));
+		background: var(--lk-paper);
 		color: var(--lk-ink);
 		overflow-x: clip;
 	}
 
-	/* Drag-over: an orange dashed frame around the whole poster. */
-	.poster::after {
+	.hero,
+	.give,
+	.work,
+	.record,
+	.foot {
+		max-width: calc(var(--col) + 2 * var(--gutter));
+		margin-inline: auto;
+		padding-inline: calc(var(--gutter) + var(--safe-left)) calc(var(--gutter) + var(--safe-right));
+	}
+
+	/* Drag-over: an ink dashed frame round the window. */
+	.lk::after {
 		content: '';
-		position: absolute;
-		inset: var(--s-3);
+		position: fixed;
+		inset: calc(var(--bar-h) + var(--safe-top) + var(--s-2)) var(--s-2) var(--s-2);
 		border: 3px dashed transparent;
 		border-radius: 4px;
 		pointer-events: none;
+		z-index: 5;
 		transition: border-color var(--dur) var(--ease);
 	}
 
 	.dragging::after {
-		border-color: var(--lk-orange);
+		border-color: var(--lk-ink);
+	}
+
+	/* Small orange labels: the evidence tag and the rap sheet's. */
+	.tag {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		align-self: flex-start;
+		padding: 4px 10px 3px 13px;
+		clip-path: polygon(9px 0, 100% 0, 100% 100%, 9px 100%, 0 50%);
+		background: var(--lk-orange);
+		color: var(--lk-ink);
+		font-family: var(--font-display);
+		font-size: 1rem;
+		line-height: 1;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	/* The punched hole a tag's string goes through. */
+	.tag::before {
+		content: '';
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background: var(--lk-ink);
 	}
 
 	/* ---------- Hero ---------- */
 
 	.hero {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		text-align: center;
-		max-width: 72rem;
-		margin: 0 auto;
+		display: grid;
+		grid-template-areas: 'photo' 'copy';
+		padding-inline: 0;
 	}
 
-	.art :global(.lk-icon) {
-		width: 84px;
-		height: 84px;
-		filter: drop-shadow(0 10px 30px rgb(255 107 26 / 0.22));
+	.photo {
+		grid-area: photo;
+		position: relative;
+		margin: 0;
+		background: var(--lk-wall);
+		border-bottom: 3px solid var(--lk-ink);
+		overflow: hidden;
+	}
+
+	/* The camera flash, once. */
+	.photo::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: #fff;
+		opacity: 0;
+		pointer-events: none;
+		animation: flash 650ms ease-out 1;
+	}
+
+	@keyframes flash {
+		0% {
+			opacity: 0.9;
+		}
+		100% {
+			opacity: 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.photo::after {
+			animation: none;
+		}
 	}
 
 	.copy {
+		grid-area: copy;
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		width: 100%;
+		align-items: flex-start;
+		padding: var(--s-4) calc(var(--gutter) + var(--safe-right)) 0 calc(var(--gutter) + var(--safe-left));
 	}
 
 	.headline {
-		margin-top: var(--s-2);
 		font-family: var(--font-display);
 		font-weight: 400;
-		font-size: clamp(3.75rem, 21vw, 9.5rem);
+		font-size: clamp(2.75rem, 12.4vw, 6.5rem);
 		line-height: 0.9;
 		letter-spacing: 0.005em;
-		color: var(--lk-ink);
-		text-wrap: balance;
-		max-width: 6.2ch;
-	}
-
-	.tagline {
-		margin-top: var(--s-3);
-		font-family: var(--font-display);
-		font-size: clamp(1.375rem, 6.2vw, 2.25rem);
-		line-height: 1.05;
-		letter-spacing: 0.01em;
-		color: var(--lk-orange);
 		text-transform: uppercase;
-		text-wrap: balance;
+		color: var(--lk-ink);
 	}
 
-	/* What the site is: plain, large and bright, right above the button. */
+	.l1,
+	.l2 {
+		display: block;
+	}
+
+	.l2 > span {
+		display: inline-block;
+		margin-top: 0.05em;
+		margin-left: -0.06em;
+		padding: 0.05em 0.12em 0.01em;
+		background: var(--lk-orange);
+		box-shadow: 0.06em 0.06em 0 var(--lk-ink);
+		transform: rotate(-1.2deg);
+		transform-origin: left center;
+	}
+
+	/* What the site is: plain, large and black, right above the button. */
 	.statement {
 		margin-top: var(--s-4);
-		max-width: 22ch;
-		font-size: clamp(1.1875rem, 5.6vw, 1.75rem);
+		max-width: 24ch;
+		font-size: clamp(1.1875rem, 5.2vw, 1.625rem);
 		line-height: 1.2;
 		font-weight: 800;
-		letter-spacing: -0.005em;
+		letter-spacing: -0.01em;
 		color: var(--lk-ink);
 		text-wrap: balance;
 	}
 
-	/* The one action. Its colour is used nowhere else on the page. */
+	/* The one action. Police-tape yellow is used nowhere else on the page. */
 	.cta {
-		--cta: #ffd21f;
-		--cta-hi: #ffe066;
-		--cta-ink: #0d0d0c;
-		--cta-edge: #b38600;
 		margin-top: var(--s-4);
 		width: 100%;
 		display: flex;
 		flex-direction: column;
-		align-items: center;
+		align-items: stretch;
 		gap: var(--s-2);
 	}
 
@@ -248,33 +327,29 @@
 		justify-content: center;
 		gap: var(--s-2);
 		width: 100%;
-		max-width: 24rem;
 		min-height: 64px;
 		padding: 0 var(--s-6) 0 var(--s-5);
+		border: 3px solid var(--lk-ink);
 		border-radius: 4px;
-		background: var(--cta);
-		color: var(--cta-ink);
+		background: var(--lk-yellow);
+		color: var(--lk-ink);
 		font-size: 1.375rem;
 		font-weight: 850;
-		letter-spacing: 0.005em;
-		box-shadow:
-			0 0 0 2px var(--cta-ink) inset,
-			0 6px 0 var(--cta-edge);
+		letter-spacing: -0.005em;
+		box-shadow: 5px 5px 0 var(--lk-ink);
 		transition:
 			transform var(--dur-fast) var(--ease),
-			box-shadow var(--dur-fast) var(--ease),
-			background-color var(--dur-fast) var(--ease);
+			box-shadow var(--dur-fast) var(--ease);
 	}
 
 	.choose:hover {
-		background: var(--cta-hi);
+		transform: translate(-1px, -1px);
+		box-shadow: 6px 6px 0 var(--lk-ink);
 	}
 
 	.choose:active {
-		transform: translateY(4px);
-		box-shadow:
-			0 0 0 2px var(--cta-ink) inset,
-			0 2px 0 var(--cta-edge);
+		transform: translate(4px, 4px);
+		box-shadow: 1px 1px 0 var(--lk-ink);
 	}
 
 	.choose:focus-visible {
@@ -293,36 +368,40 @@
 
 	@media (hover: hover) and (pointer: fine) {
 		.cta {
+			align-items: center;
+			gap: var(--s-3);
 			padding: var(--s-4);
-			border: 2px dashed color-mix(in srgb, var(--lk-ink) 45%, transparent);
-			border-radius: 8px;
-			max-width: 28rem;
+			border: 2px dashed color-mix(in srgb, var(--lk-ink) 50%, transparent);
+			border-radius: 6px;
 		}
 
 		.dragging .cta {
-			border-color: var(--cta);
+			border-style: solid;
+			border-color: var(--lk-ink);
 		}
 
 		.drop-hint {
 			display: inline;
-			font-size: var(--text-control);
+			font-size: 1rem;
 			font-weight: 650;
-			color: var(--lk-ink);
+			color: var(--lk-soft);
 		}
 	}
 
 	@media (hover: hover) and (pointer: fine) and (min-width: 600px) {
 		.cta {
-			width: auto;
-			max-width: none;
-			align-self: center;
-			padding: var(--s-4) var(--s-5);
 			flex-direction: row;
+			width: auto;
 			gap: var(--s-5);
+			padding-right: var(--s-5);
 		}
 
 		.choose {
 			width: auto;
+		}
+
+		.drop-hint {
+			padding-right: var(--s-1);
 		}
 	}
 
@@ -330,12 +409,10 @@
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		justify-content: center;
 		gap: var(--s-2);
-		margin: var(--s-4) 0 0;
+		margin: var(--s-5) 0 0;
 		padding: 0;
 		list-style: none;
-		max-width: 24rem;
 	}
 
 	.tool {
@@ -344,9 +421,9 @@
 		gap: 6px;
 		min-height: 40px;
 		padding: 0 var(--s-3) 0 10px;
-		border: 1.5px solid #5a554d;
+		border: 1.5px solid color-mix(in srgb, var(--lk-ink) 35%, transparent);
 		border-radius: 999px;
-		background: var(--lk-raise);
+		background: var(--lk-card);
 		color: var(--lk-ink);
 		font-size: 0.9375rem;
 		font-weight: 700;
@@ -357,12 +434,12 @@
 	}
 
 	.tool:hover {
-		border-color: var(--lk-orange);
-		background: #221f1b;
+		border-color: var(--lk-ink);
+		background: #fff;
 	}
 
 	.tool :global(.icon) {
-		color: var(--lk-orange);
+		color: var(--lk-soft);
 	}
 
 	.new-work {
@@ -375,6 +452,7 @@
 		margin-top: var(--s-3);
 		text-wrap: balance;
 		font-size: var(--text-caption);
+		font-weight: 600;
 		color: var(--lk-soft);
 	}
 
@@ -385,66 +463,44 @@
 		color: var(--ok);
 	}
 
-	/* ---------- Giving band: a ticket stub torn off the poster ---------- */
+	/* ---------- Giving band: an evidence tag ---------- */
 
 	.give {
-		--notch: 12px;
-		position: relative;
 		display: grid;
-		max-width: 60rem;
-		margin: var(--s-5) auto 0;
-		background: var(--lk-paper);
-		color: var(--lk-paper-ink);
-		border-radius: 6px;
-		/* Two half-circle notches where the stub is torn off. */
-		mask:
-			radial-gradient(circle var(--notch) at 0 var(--tear), transparent 98%, #000) left / 51% 100% no-repeat,
-			radial-gradient(circle var(--notch) at 100% var(--tear), transparent 98%, #000) right / 51% 100% no-repeat;
-		--tear: 56px;
+		margin-top: var(--s-6);
+		filter: drop-shadow(6px 6px 0 var(--lk-ink));
 	}
 
-	.stub {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: var(--s-3);
-		height: var(--tear);
-		padding: 0 var(--s-5);
-		align-items: center;
-		border-bottom: 2px dashed color-mix(in srgb, var(--lk-paper-ink) 30%, transparent);
-		font-family: var(--font-display);
-		text-transform: uppercase;
-		line-height: 1;
-	}
-
-	.fee-label {
-		font-size: 1.25rem;
-		letter-spacing: 0.04em;
-	}
-
-	.fee-amount {
-		font-size: 2rem;
-		color: var(--lk-paper-ink);
-		background: var(--lk-orange);
-		padding: 4px 8px 3px;
-		margin-right: -4px;
-		transform: rotate(-3deg);
-	}
-
+	.give-head,
 	.give-body {
-		display: grid;
-		gap: var(--s-4);
-		padding: var(--s-5);
+		border: 3px solid var(--lk-ink);
+	}
+
+	.give-head {
+		display: flex;
+		flex-direction: column;
+		gap: var(--s-3);
+		padding: var(--s-4);
+		background: var(--lk-ink);
+		color: var(--lk-card);
 	}
 
 	.give-heading {
 		font-family: var(--font-display);
 		font-weight: 400;
-		font-size: clamp(1.625rem, 7vw, 2.25rem);
+		font-size: clamp(1.625rem, 7.4vw, 2.25rem);
 		line-height: 1;
-		text-transform: uppercase;
 		letter-spacing: 0.01em;
+		text-transform: uppercase;
 		text-wrap: balance;
+	}
+
+	.give-body {
+		display: grid;
+		gap: var(--s-4);
+		padding: var(--s-4);
+		border-top: 0;
+		background: var(--lk-card);
 	}
 
 	.give-lead {
@@ -464,7 +520,7 @@
 	}
 
 	.give-links li {
-		flex: 1 1 10rem;
+		flex: 1 1 12rem;
 	}
 
 	.give-links a {
@@ -475,8 +531,8 @@
 		min-height: 52px;
 		padding: 0 var(--s-4);
 		border-radius: 4px;
-		background: var(--lk-black);
-		color: var(--lk-ink);
+		background: var(--lk-ink);
+		color: var(--lk-card);
 		font-weight: 800;
 		font-size: 1.0625rem;
 		text-decoration: none;
@@ -484,93 +540,94 @@
 	}
 
 	.give-links a:hover {
-		background: #2a2724;
-	}
-
-	.give-links a .ext {
-		color: var(--lk-orange);
-	}
-
-	.give-links a:focus-visible {
-		outline: 3px solid var(--lk-orange);
-		outline-offset: 3px;
+		background: #2e2c29;
 	}
 
 	.give-note {
 		font-size: var(--text-caption);
 		line-height: 1.5;
-		color: var(--lk-paper-soft);
+		color: var(--lk-soft);
 	}
 
 	/* ---------- Home cards, when there is saved work ---------- */
 
 	.work {
-		max-width: 60rem;
-		margin: var(--s-6) auto 0;
+		margin-top: var(--s-7);
 	}
 
-	/* ---------- Tools ---------- */
+	/* ---------- Rap sheet: the tool list ---------- */
 
-	.tools {
+	.record {
+		margin-top: 64px;
+	}
+
+	.record-head {
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		text-align: center;
-		max-width: 60rem;
-		margin: var(--s-7) auto 0;
+		gap: var(--s-2);
+		padding-bottom: var(--s-3);
+		border-bottom: 3px solid var(--lk-ink);
 	}
 
 	.what {
 		font-family: var(--font-display);
 		font-weight: 400;
-		font-size: 2.25rem;
+		font-size: clamp(2rem, 9vw, 2.75rem);
 		line-height: 1;
-		text-transform: uppercase;
 		letter-spacing: 0.01em;
+		text-transform: uppercase;
+	}
+
+	.counts {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		column-gap: var(--s-6);
+	}
+
+	.counts li {
+		display: grid;
+		grid-template-columns: 3.25rem minmax(0, 1fr);
+		gap: var(--s-3);
+		align-items: start;
+		padding: var(--s-4) 0;
+		border-bottom: 1px solid var(--lk-line);
+	}
+
+	.count {
+		display: flex;
+		flex-direction: column;
+		font-family: var(--font-display);
+		font-size: 1.875rem;
+		line-height: 1;
 		color: var(--lk-ink);
 	}
 
-	.features {
-		list-style: none;
-		margin: var(--s-5) 0 0;
-		padding: 0;
-		width: 100%;
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 1px;
-		background: var(--lk-line);
-		border: 1px solid var(--lk-line);
-		border-radius: 6px;
-		overflow: hidden;
-		text-align: left;
-	}
-
-	.features li {
-		display: flex;
-		gap: var(--s-3);
-		align-items: flex-start;
-		padding: var(--s-4);
-		background: var(--lk-raise);
-	}
-
-	.features li > :global(.icon) {
-		flex: none;
-		margin-top: 1px;
-		color: var(--lk-orange);
+	.count span {
+		margin-bottom: 3px;
+		font-family: var(--font-sans);
+		font-size: 0.625rem;
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--lk-soft);
 	}
 
 	.ftext {
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		font-size: var(--text-caption);
+		padding-top: 1px;
+		font-size: var(--text-control);
 		line-height: 1.45;
 		color: var(--lk-soft);
 	}
 
 	.ftext strong {
-		font-size: var(--text-control);
-		font-weight: 700;
+		font-size: 1.0625rem;
+		font-weight: 750;
 		color: var(--lk-ink);
 	}
 
@@ -578,21 +635,22 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--s-1);
-		min-height: 44px;
-		margin-top: var(--s-3);
-		padding: 0 var(--s-3);
+		min-height: 48px;
+		margin-top: var(--s-5);
+		padding: 0 var(--s-4) 0 var(--s-3);
+		border: 2px solid var(--lk-ink);
 		border-radius: 4px;
+		background: var(--lk-card);
 		font-size: var(--text-control);
-		font-weight: 650;
+		font-weight: 750;
 		color: var(--lk-ink);
 	}
 
 	.more:hover {
-		background: rgb(244 239 230 / 0.07);
+		background: #fff;
 	}
 
 	.more > :global(.icon) {
-		color: var(--lk-orange);
 		transition: transform var(--dur) var(--ease);
 	}
 
@@ -600,19 +658,29 @@
 		transform: rotate(90deg);
 	}
 
+	/* ---------- Footer lines ---------- */
+
+	.foot {
+		margin-top: var(--s-7);
+	}
+
+	.foot > * {
+		max-width: 44rem;
+	}
+
 	.once {
-		margin-top: var(--s-2);
-		font-size: var(--text-caption);
-		color: var(--lk-soft);
+		padding-top: var(--s-4);
+		border-top: 1px solid var(--lk-line);
+		max-width: none;
+		font-size: var(--text-control);
+		color: var(--lk-ink);
 	}
 
 	.proof {
-		margin-top: var(--s-3);
-		max-width: 36rem;
+		margin-top: var(--s-2);
 		font-size: var(--text-caption);
 		line-height: 1.6;
 		color: var(--lk-soft);
-		text-wrap: balance;
 	}
 
 	.proof :global(.icon) {
@@ -624,100 +692,104 @@
 
 	.proof a {
 		color: var(--lk-ink);
+		font-weight: 700;
 		white-space: nowrap;
 	}
 
-	/* ---------- Wider screens: type left, mark right; the stub turns sideways ---------- */
+	/* ---------- Medium: the tool list in two columns ---------- */
 
-	@media (min-width: 900px) {
-		.poster {
-			padding-top: var(--s-6);
+	@media (min-width: 700px) {
+		.lk {
+			--gutter: 32px;
 		}
 
-		.hero {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto;
-			grid-template-areas: 'copy art';
+		.counts {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.record-head {
+			flex-direction: row;
 			align-items: center;
-			gap: var(--s-6);
-			text-align: left;
-			max-width: 60rem;
+			gap: var(--s-4);
+		}
+
+		.record-head .tag {
+			align-self: center;
+		}
+	}
+
+	/* ---------- Wide: text left, the photo beside it as a print ---------- */
+
+	@media (min-width: 900px) {
+		.hero {
+			grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+			grid-template-areas: 'copy photo';
+			align-items: center;
+			column-gap: var(--s-7);
+			padding: var(--s-7) calc(var(--gutter) + var(--safe-right)) 0 calc(var(--gutter) + var(--safe-left));
 		}
 
 		.copy {
-			grid-area: copy;
-			align-items: flex-start;
+			padding: 0;
 		}
 
-		.statement {
-			max-width: none;
-		}
-
-		.cta {
-			align-self: flex-start;
-		}
-
-		.chips {
-			justify-content: flex-start;
-			max-width: none;
-		}
-
-		.art {
-			grid-area: art;
-		}
-
-		.art :global(.lk-icon) {
-			width: 300px;
-			height: 300px;
-		}
-
-		.tagline {
-			margin-top: var(--s-4);
+		.photo {
+			border: 3px solid var(--lk-ink);
+			box-shadow: 10px 10px 0 var(--lk-ink);
+			transform: rotate(1deg);
 		}
 
 		.headline {
-			margin-top: 0;
-			font-size: clamp(5.5rem, 10vw, 9rem);
+			font-size: clamp(4.5rem, 7.6vw, 6.75rem);
+		}
+
+		.statement {
+			margin-top: var(--s-5);
+			max-width: 22ch;
+		}
+
+		/* The drop area runs the width of the column: a real target, and a clean right edge. */
+		.cta {
+			margin-top: var(--s-5);
+			align-self: stretch;
+		}
+
+		.chips {
+			gap: 6px;
+		}
+
+		.tool {
+			padding: 0 11px 0 9px;
+			font-size: 0.90625rem;
 		}
 
 		.give {
-			grid-template-columns: 11rem minmax(0, 1fr);
-			mask:
-				radial-gradient(circle var(--notch) at var(--tear-x) 0, transparent 98%, #000) top / 100% 51% no-repeat,
-				radial-gradient(circle var(--notch) at var(--tear-x) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
-			--tear-x: 11rem;
+			grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+			margin-top: 72px;
 		}
 
-		.stub {
-			flex-direction: column;
+		.give-head {
 			justify-content: center;
-			gap: var(--s-3);
-			height: auto;
-			padding: var(--s-5) var(--s-4);
-			border-bottom: 0;
-			border-right: 2px dashed color-mix(in srgb, var(--lk-paper-ink) 30%, transparent);
-			text-align: center;
-		}
-
-		.fee-amount {
-			font-size: 2.75rem;
+			padding: var(--s-5);
 		}
 
 		.give-body {
 			grid-template-columns: minmax(0, 1fr) auto;
-			align-items: center;
 			column-gap: var(--s-6);
+			align-items: center;
 			padding: var(--s-5) var(--s-6);
+			border-top: 3px solid var(--lk-ink);
+			border-left: 0;
 		}
 
-		.give-heading,
-		.give-lead {
+		.give-lead,
+		.give-note {
 			grid-column: 1;
 		}
 
 		.give-links {
 			grid-column: 2;
-			grid-row: 1 / span 3;
+			grid-row: 1 / span 2;
 			flex-direction: column;
 			width: 13rem;
 		}
@@ -726,43 +798,43 @@
 			flex: none;
 		}
 
-		.give-note {
-			grid-column: 1;
+		.give {
+			filter: drop-shadow(8px 8px 0 var(--lk-ink));
+		}
+
+		.record {
+			margin-top: 80px;
 		}
 	}
 
-	@media (max-width: 759px) {
-		.features {
-			grid-template-columns: 1fr;
-			max-width: 30rem;
+	@media (min-width: 1080px) {
+		.counts {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
 	}
 
 	@media (max-width: 359px) {
-		.poster {
-			padding-left: calc(var(--s-3) + var(--safe-left));
-			padding-right: calc(var(--s-3) + var(--safe-right));
-		}
-
-		.stub {
-			padding: 0 var(--s-4);
-		}
-
-		.give-body {
-			padding: var(--s-4);
+		.lk {
+			--gutter: 12px;
 		}
 
 		.choose {
 			padding: 0 var(--s-5) 0 var(--s-4);
 		}
 
+		/* Two even columns rather than a ragged wrap. */
 		.chips {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 			gap: 6px;
+			width: 100%;
 		}
 
 		.tool {
+			width: 100%;
+			justify-content: center;
 			gap: 4px;
-			padding: 0 10px 0 8px;
+			padding: 0 6px;
 			font-size: 0.8125rem;
 		}
 	}

@@ -4,7 +4,7 @@ const campaignMock = {
 	name: 'X',
 	title: 'X',
 	description: 'X',
-	splash: { fee: { label: 'Download fee', amount: '$0.00' } },
+	fee: { label: 'Download fee', amount: '$0.00' },
 	ask: {
 		lead: 'Lead sentence.',
 		links: [
