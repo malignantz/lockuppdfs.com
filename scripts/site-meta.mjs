@@ -75,6 +75,9 @@ const fontHead = [
 const icons = ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png'];
 for (const name of icons) copyFileSync(join(art, 'icons', name), join(build, name));
 copyFileSync(join(art, 'og.png'), join(build, 'og.png'));
+// The campaign's forwards (/a, /b, /c to the start pages kept for showing). Read by the
+// Workers static-assets server, outside _app/, so it is never precached.
+copyFileSync(join(art, '_redirects'), join(build, '_redirects'));
 const BLACK = '#0d0d0c';
 
 let n = 0;
