@@ -1,7 +1,5 @@
 <script lang="ts">
 	import '../app.css';
-	// The campaign build's palette and typeface; an empty file on the plain build (vite.config.ts).
-	import 'site-theme.css';
 	import { onMount } from 'svelte';
 	import { dev } from '$app/env';
 	import { getApp } from '#lib/app.ts';

@@ -4,7 +4,6 @@
 	import Icon from './Icon.svelte';
 	import type { IconName } from './icons';
 	import { campaign } from '../site/site';
-	import LockupSplash from '../site/LockupSplash.svelte';
 
 	/**
 	 * The empty state. The whole desk (the window) is the drop target while this
@@ -94,25 +93,14 @@
 
 <svelte:window {ondragenter} {ondragover} {ondragleave} {ondrop} />
 
-{#snippet picker()}
-	<input
-		bind:this={input}
-		class="visually-hidden"
-		type="file"
-		multiple
-		{accept}
-		tabindex="-1"
-		aria-hidden="true"
-		{onchange}
-	/>
-{/snippet}
-
-{#if campaign}
-	<!-- The campaign build has its own start page; the drop target, picker and tool list are shared. -->
-	<LockupSplash {campaign} {features} first={FIRST} bind:more {dragging} {top} {newWork} onchoose={() => input?.click()} {picker} />
-{:else}
 <section class="desk" class:dragging aria-labelledby="empty-title">
 	<div class="stage">
+		{#if campaign}
+			<aside class="pitch" aria-label="About this site">
+				<h2 class="pitch-heading">{campaign.pitch.heading}</h2>
+				<p class="pitch-body">{campaign.pitch.body}</p>
+			</aside>
+		{/if}
 		{#if top}{@render top()}{/if}
 		<div class="sheets" class:hidden={!!newWork} aria-hidden="true">
 			<div class="sheet s1"></div>
@@ -136,7 +124,16 @@
 			<Button variant="primary" size="lg" icon="add" onclick={() => input?.click()}>Choose files</Button>
 			<span class="drop-hint">or drop them anywhere on this page</span>
 			{#if newWork}<p class="new-work">{newWork}</p>{/if}
-			{@render picker()}
+			<input
+				bind:this={input}
+				class="visually-hidden"
+				type="file"
+				multiple
+				{accept}
+				tabindex="-1"
+				aria-hidden="true"
+				{onchange}
+			/>
 		</div>
 
 		<h2 class="what">What you can do</h2>
@@ -160,7 +157,6 @@
 		</p>
 	</div>
 </section>
-{/if}
 
 <style>
 	.desk {
@@ -204,6 +200,31 @@
 		max-width: 56rem;
 		/* Optical centre sits a little above the geometric one. */
 		margin-top: -2vh;
+	}
+
+	/* ---------- Campaign pitch (only on the LockUpPDFs build) ---------- */
+
+	.pitch {
+		max-width: 36rem;
+		margin-bottom: var(--s-4);
+		padding-bottom: var(--s-3);
+		border-bottom: 1px solid var(--line);
+	}
+
+	.pitch-heading {
+		font-family: var(--font-serif);
+		font-weight: 500;
+		font-size: 1.25rem;
+		line-height: 1.25;
+		color: var(--ink);
+	}
+
+	.pitch-body {
+		margin-top: var(--s-1);
+		font-size: var(--text-caption);
+		line-height: 1.5;
+		color: var(--ink-soft);
+		text-wrap: balance;
 	}
 
 	/* ---------- Sheets illustration ---------- */

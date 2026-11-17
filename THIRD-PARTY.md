@@ -43,14 +43,3 @@ WOFF2, from the [Fontsource](https://fontsource.org) npm packages (version 5.3.0
 | [Great Vibes](https://github.com/googlefonts/great-vibes) | `great-vibes-latin{,-ext}-400-normal.woff2` | SIL Open Font License 1.1 (`great-vibes-OFL.txt`) |
 | [Dancing Script](https://github.com/googlefonts/DancingScript) | `dancing-script-latin{,-ext}-400-normal.woff2` | SIL Open Font License 1.1 (`dancing-script-OFL.txt`) |
 | [Caveat](https://github.com/googlefonts/caveat) | `caveat-latin{,-ext}-400-normal.woff2` | SIL Open Font License 1.1 (`caveat-OFL.txt`) |
-
-## Campaign typeface (`src/lib/site/fonts/`, LockUpPDFs build only)
-
-Only the `VITE_SITE=lockup` build loads it (`src/lib/site/theme-lockup.css`); the plain site
-uses system fonts. From the Fontsource npm package `@fontsource/geist-sans` 5.3.0
-(`geist-sans-latin-{400,700}-normal.woff2`), subset by us with fonttools `pyftsubset` to
-Basic Latin, Latin-1 and common punctuation (kern, liga, calt kept): 13.5 KB and 14.0 KB.
-
-| Font | Files | License |
-|---|---|---|
-| [Geist](https://github.com/vercel/geist-font) (Vercel with basement.studio) | `geist-400.woff2`, `geist-700.woff2` | SIL Open Font License 1.1 (`geist-OFL.txt`) |

@@ -23,48 +23,38 @@
 {/if}
 
 <style>
-	/* Same look as the giving card on the start page (LockupSplash.svelte). */
 	.ask {
 		display: grid;
 		gap: var(--s-3);
 		padding: var(--s-4);
-		border: 1px solid var(--lu-tint-line, var(--line));
-		border-radius: 16px;
-		background: var(--lu-tint, var(--hover));
+		border: 1px solid var(--line);
+		border-radius: var(--radius-control);
+		background: var(--hover);
 	}
 
 	.lead {
 		color: var(--ink);
-		line-height: 1.45;
 	}
 
 	.links {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-		gap: var(--s-2);
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--s-2) var(--s-4);
 		padding: 0;
 		margin: 0;
 		list-style: none;
 	}
 
-	.links a {
-		display: flex;
+	.links a,
+	.dismiss {
+		display: inline-flex;
 		align-items: center;
-		justify-content: center;
-		min-height: 44px;
-		padding: 0 var(--s-3);
-		border-radius: 12px;
-		background: var(--lu-give, var(--ink));
-		color: var(--lu-give-ink, var(--surface));
+		min-height: 32px;
 		font-size: var(--text-control);
-		font-weight: 700;
-		text-decoration: none;
-		white-space: nowrap;
-		box-shadow: 0 1px 2px rgb(11 13 18 / 0.2);
 	}
 
-	.links a:hover {
-		background: color-mix(in srgb, var(--lu-give, var(--ink)) 84%, var(--accent));
+	.links a {
+		font-weight: 600;
 	}
 
 	.note {
@@ -73,22 +63,17 @@
 
 	.dismiss {
 		justify-self: start;
-		display: inline-flex;
-		align-items: center;
-		min-height: 36px;
 		padding: 0 var(--s-3);
 		border: 1px solid var(--line-strong);
-		border-radius: 10px;
-		background: var(--surface);
+		border-radius: var(--radius-control);
+		background: transparent;
 		color: var(--ink);
 		font-family: inherit;
-		font-size: var(--text-control);
-		font-weight: 700;
 		cursor: pointer;
 	}
 
 	.dismiss:hover {
-		background: color-mix(in srgb, var(--surface) 100%, var(--ink) 5%);
+		background: var(--hover);
 	}
 
 	.dismiss:focus-visible,
@@ -101,6 +86,10 @@
 		.links a,
 		.dismiss {
 			min-height: 44px;
+		}
+
+		.links a {
+			min-width: 44px;
 		}
 	}
 </style>
