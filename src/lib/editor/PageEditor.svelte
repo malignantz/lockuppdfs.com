@@ -637,8 +637,10 @@
 		selectOn = true;
 		selectChosen = true;
 		selectPicked = true;
-		const msg = pageHasText === false ? 'This page has no selectable text.' : scanReading ? READING_PAGE : SELECT_HINT;
-		showNote(msg);
+		const msg = pageHasText === false ? 'This page has no selectable text.' : scanReading || (pageHasText === null && (scanView?.state === 'waiting' || scanView?.state === 'reading')) ? READING_PAGE : SELECT_HINT;
+		// While the words are still being read, the tool's bar says so; the hint waits for words.
+		const scanPending = scanView?.state === 'waiting' || scanView?.state === 'reading';
+		if (!(pageHasText === null && scanPending)) showNote(msg);
 		announce(msg);
 	}
 
@@ -2221,7 +2223,7 @@
 			<div class="scan-progress">
 				<Progress value={scanWait.total ? scanWait.done / scanWait.total : 0} label="Reading the text in this scan" />
 				<p class="scan-count num" data-testid="scan-count">
-					{scanWait.done} of {scanWait.total} {scanWait.total === 1 ? 'page' : 'pages'} read{#if scanLeft}<span> · {scanLeft}</span>{/if}
+					{`${scanWait.done} of ${scanWait.total} ${scanWait.total === 1 ? 'page' : 'pages'} read${scanLeft ? ` · ${scanLeft}` : ''}`}
 				</p>
 			</div>
 		{/if}
