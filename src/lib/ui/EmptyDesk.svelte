@@ -24,7 +24,7 @@
 		$props();
 
 	// Ordered by how often people need each one (the demand table in the plan). The first
-	// ones are always shown; the rest fold under "More it can do", open where there is room.
+	// ones are always shown; the rest fold under "Show all N tools", open where there is room.
 	const features: { icon: IconName; title: string; line: string }[] = [
 		{ icon: 'duplicate', title: 'Combine files', line: 'Merge several PDFs into one, in the order you want.' },
 		{ icon: 'file', title: 'Pictures to PDF', line: 'Turn photos and scans into one PDF.' },
@@ -144,7 +144,7 @@
 			{/each}
 		</ul>
 		<button type="button" class="more" class:open={more} aria-expanded={more} aria-controls="features" onclick={() => (more = !more)}>
-			<Icon name="chevron-right" size={18} />More it can do
+			<Icon name="chevron-right" size={18} />{more ? "Show fewer" : `Show all ${features.length} tools`}
 		</button>
 
 		<p class="once">Add a file to start. Everything is in one place, and you download once at the end.</p>
@@ -405,12 +405,13 @@
 	}
 
 	.more > :global(.icon) {
+		transform: rotate(90deg);
 		color: var(--ink-soft);
 		transition: transform var(--dur) var(--ease);
 	}
 
 	.more.open > :global(.icon) {
-		transform: rotate(90deg);
+		transform: rotate(-90deg);
 	}
 
 	.once {

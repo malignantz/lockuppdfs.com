@@ -140,7 +140,7 @@
 			{/each}
 		</ol>
 		<button type="button" class="more" class:open={more} aria-expanded={more} aria-controls="features" onclick={() => (more = !more)}>
-			<Icon name="chevron-right" size={18} />More it can do
+			<Icon name="chevron-right" size={18} />{more ? "Show fewer" : `Show all ${features.length} tools`}
 		</button>
 	</section>
 
@@ -651,11 +651,12 @@
 	}
 
 	.more > :global(.icon) {
+		transform: rotate(90deg);
 		transition: transform var(--dur) var(--ease);
 	}
 
 	.more.open > :global(.icon) {
-		transform: rotate(90deg);
+		transform: rotate(-90deg);
 	}
 
 	/* ---------- Footer lines ---------- */

@@ -149,9 +149,10 @@ test('works at 320 px wide with no sideways scroll, and the tool list still open
 	await page.goto('/');
 	await expect(page.getByRole('button', { name: 'Choose files' })).toBeInViewport({ ratio: 1 });
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-	const more = page.getByRole('button', { name: 'More it can do' });
+	const more = page.getByRole('button', { name: /^Show (all 16 tools|fewer)$/ });
 	await more.click();
 	await expect(more).toHaveAttribute('aria-expanded', 'true');
+	await expect(more).toHaveText('Show fewer');
 	await expect(page.getByText('Searchable scans')).toBeVisible();
 });
 
