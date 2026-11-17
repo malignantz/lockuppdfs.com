@@ -42,6 +42,10 @@ The campaign start page is a booking photo of a PDF (`src/lib/site/LockupSplash.
 Its art lives in `design/lockup/` (mark, display face, share image source); run
 `node scripts/make-lockup-art.mjs` after changing the art or the words. `scripts/site-meta.mjs` copies the face, icons and `og.png` into the campaign build only, so
 in `vite dev` with `VITE_SITE=lockup` the headline shows in a fallback face.
+The campaign site's Worker (`workers/lockup-visits.ts`) counts page loads server-side in
+the self-hosted Umami (stats.meseeks.xyz) and passes every response through unchanged; it runs
+only for the pages listed in `run_worker_first`, and the browser still contacts no other origin.
+The plain site has no Worker script and counts nothing.
 
 ```sh
 npm run build          # plain site into build/

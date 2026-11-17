@@ -38,10 +38,21 @@
 				searchable, which runs on your computer like everything else. There is no CDN, no web font service and no
 				third-party script.
 			</li>
-			<li>
-				<strong>No analytics, no tracking.</strong> No cookies, no analytics script, no telemetry. The site does
-				not know who you are or what you opened.
-			</li>
+			{#if campaign}
+				<li id="visits">
+					<strong>Visits are counted. Files are not.</strong> When a page of this site loads, our server notes, in a
+					visit counter we host ourselves, which page it was, the site that linked here, your country and rough area
+					(region and city), your browser's language, and the kind of browser and device, so we can see how many
+					people come. Your IP address is used once to work out where you are and to tell one visitor from another
+					within a calendar month, and is not kept. There are no cookies and no analytics script in the page, and
+					nothing about the files you open ever reaches the server.
+				</li>
+			{:else}
+				<li>
+					<strong>No analytics, no tracking.</strong> No cookies, no analytics script, no telemetry. The site does
+					not know who you are or what you opened.
+				</li>
+			{/if}
 			<li>
 				<strong>It works offline.</strong> After the first visit the app is stored on your device and runs with
 				no connection at all.

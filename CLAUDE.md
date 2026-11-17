@@ -7,6 +7,9 @@ architecture, ownership table) and `DESIGN.md` before changing anything.
 
 - **No network.** Nothing in the app may call a third-party origin: no CDN, no
   analytics script, no remote fonts, no telemetry. All engines are bundled.
+  The campaign site's Worker (`workers/lockup-visits.ts`, LockUpPDFs.com only) counts
+  page loads server-side in the self-hosted Umami; nothing in the browser may ever
+  call another origin, and the privacy page must list exactly what it stores.
 - **Never ship an unverified export.** `Engine.exportPlan` verifies or throws.
 - **Avoid, don't fail.** If a feature cannot be made near-100% reliable, leave it
   out and note it in the plan's backlog. Do not add lossy or heuristic tools.

@@ -111,6 +111,16 @@ test('the privacy page explains the donation link', async ({ page }) => {
 	await expect(section).toContainText('does not know whether the link was followed');
 });
 
+test('the privacy page says visits are counted by our server and files are not', async ({ page }) => {
+	await page.goto('/privacy');
+	const visits = page.locator('#visits');
+	await expect(visits).toContainText('Visits are counted. Files are not.');
+	await expect(visits).toContainText('is not kept');
+	await expect(visits).toContainText('nothing about the files you open ever reaches the server');
+	await expect(page.locator('body')).not.toContainText('No analytics, no tracking.');
+	await expect(page.locator('body')).toContainText('The browser blocks outside connections.');
+});
+
 test('the note fits a phone-width screen and its controls are comfortable to tap', async ({ browser, baseURL }) => {
 	test.setTimeout(120_000);
 	const context = await browser.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true, baseURL });
