@@ -23,7 +23,7 @@ describe('site variant', () => {
 		// The board states the fee: a "charge" would fight the giving lead's court-of-law line.
 		expect(campaign?.splash.placard.fee).toEqual(['FEE:', '$0.00']);
 		expect(JSON.stringify(campaign?.splash.placard)).not.toMatch(/charge/i);
-		expect(campaign?.splash.statement).toBe('Free PDF tools. Combine, sign, shrink, convert. Donate?');
+		expect(campaign?.splash.statement).toBe('Free PDF tools. Combine, sign, shrink, convert, redact.');
 		expect(campaign?.splash.give.heading).toBe('Donate to charity, not PDF software companies.');
 		expect(campaign?.splash.give.lead).toBe(
 			'Some sites charge for PDF files. We want PDF files charged in a court of law. Give what you would have paid to the people who protect children.'

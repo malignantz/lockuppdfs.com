@@ -72,7 +72,7 @@ const lockup: Campaign = {
 		// "FEE", not "CHARGE": the giving lead wants PDF files charged in court, so the board
 		// only says what the download costs.
 		placard: { header: 'LOCKUPPDFS.COM', lines: ['PDF FILE', 'LOCKED UP'], fee: ['FEE:', '$0.00'] },
-		statement: 'Free PDF tools. Combine, sign, shrink, convert. Donate?',
+		statement: 'Free PDF tools. Combine, sign, shrink, convert, redact.',
 		drop: 'or drop files here',
 		chips: [
 			{ label: 'Combine', tool: 'Combine files' },
@@ -91,7 +91,7 @@ const lockup: Campaign = {
 	},
 	fee: { label: 'Download fee', amount: '$0.00' },
 	share: {
-		line: 'Free PDF tools. Combine, sign, shrink, convert. Donate?',
+		line: 'Free PDF tools. Combine, sign, shrink, convert, redact.',
 		alt: 'A booking photo of a PDF document holding a letter board: PDF file, locked up, fee: $0.00. Beside it: PDF files. Locked up. Free PDF tools. lockuppdfs.com'
 	},
 	ask: {
