@@ -1,5 +1,5 @@
 /**
- * Pure maths for the text highlighter: the page's words (Engine.pageText) as they are
+ * Pure maths for the text highlighter and Select text: the page's words (Engine.pageText) as they are
  * shown, hit-testing a pointer against them, and the rectangles of a selection.
  * No DOM. Everything is in stamp space (core/types.ts StampBox: fractions of the page
  * as shown, after PageRef.rotation, origin top-left). Distances are in page heights,
@@ -236,6 +236,24 @@ export function selectionText(layout: TextLayout, a: number, b: number): string 
 		.slice(i0, i1 + 1)
 		.map((w) => w.text)
 		.join(' ');
+}
+
+/**
+ * The text of words a..b (either order) as Select text copies it: words of one line
+ * joined by a space, a new line where the file starts a new line. Nothing is guessed
+ * (a hyphen at the end of a line stays).
+ */
+export function copyText(layout: TextLayout, a: number, b: number): string {
+	const { words } = layout;
+	if (a < 0 || b < 0 || !words.length) return '';
+	const i0 = Math.min(a, b);
+	const i1 = Math.min(Math.max(a, b), words.length - 1);
+	let out = '';
+	for (let i = i0; i <= i1; i++) {
+		if (i > i0) out += words[i].line === words[i - 1].line ? ' ' : '\n';
+		out += words[i].text;
+	}
+	return out;
 }
 
 /**

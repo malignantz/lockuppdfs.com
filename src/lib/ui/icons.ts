@@ -31,6 +31,13 @@ export const icons = {
 	],
 	sign: ['M15 5l4 4L9 19H5v-4L15 5z', 'M12.5 7.5l4 4', 'M14 20h6'],
 	text: ['M5 7V5h14v2', 'M12 5v14', 'M9 19h6'],
+	/** A text cursor (I-beam): the editor's Select text tool. */
+	'select-text': [
+		'M9 4h1.5A1.5 1.5 0 0 1 12 5.5v13a1.5 1.5 0 0 1-1.5 1.5H9',
+		'M15 4h-1.5A1.5 1.5 0 0 0 12 5.5',
+		'M15 20h-1.5a1.5 1.5 0 0 1-1.5-1.5',
+		'M10 12h4'
+	],
 	check: ['M5 12.5l4.5 4.5L19 7'],
 	cross: ['M6 6l12 12', 'M18 6L6 18'],
 	close: ['M7 7l10 10', 'M17 7L7 17'],

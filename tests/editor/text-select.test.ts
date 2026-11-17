@@ -5,7 +5,7 @@ import type { PageText, Rotation, StampBox } from '../../src/lib/core/types';
 import { engine, openCorpus } from '../engine/helpers';
 import { rotateBox } from '../../src/lib/editor/form-view';
 import { reboxPatch } from '../../src/lib/editor/pen';
-import { boundsOf, mapRects, selectionRects, selectionText, shownLayout, wordAtEnd, wordNear } from '../../src/lib/editor/text-select';
+import { boundsOf, copyText, mapRects, selectionRects, selectionText, shownLayout, wordAtEnd, wordNear } from '../../src/lib/editor/text-select';
 
 const T = 60_000;
 const cache = new Map<number, Promise<PageText>>();
@@ -166,5 +166,21 @@ describe('text selection', () => {
 			expect(r.x).toBeGreaterThanOrEqual(small.x - 1e-12);
 			expect(r.x + r.w).toBeLessThanOrEqual(small.x + small.w + 1e-12);
 		}
+	}, T);
+
+	it('Select text copies words with spaces, and a new line where the file starts one', async () => {
+		const t = await words(1);
+		const lay = shownLayout(t, 0, 612 / 792);
+		const a = idx(t, 'quick');
+		const b = idx(t, 'lazy');
+		expect(copyText(lay, a, b)).toBe('quick brown fox jumping\nover the lazy');
+		// Either order, one word, and nothing.
+		expect(copyText(lay, b, a)).toBe(copyText(lay, a, b));
+		expect(copyText(lay, a, a)).toBe('quick');
+		expect(copyText(lay, -1, a)).toBe('');
+		// A selection running past the last word stops at it.
+		const all = copyText(lay, 0, t.words.length + 5);
+		expect(all.split(/\s+/)).toEqual(t.words.map((w) => w.text));
+		expect(all.split('\n')).toHaveLength(new Set(t.words.map((w) => w.line)).size);
 	}, T);
 });

@@ -8,6 +8,12 @@
 	let hlModeChosen: 'text' | 'pen' | 'box' | null = null;
 	/** The note that a page has no selectable text is shown once per visit. */
 	let scanNoteShown = false;
+	/**
+	 * Select text turned on or off by hand, for the rest of the visit; null until then,
+	 * which means on with a mouse or trackpad and off on touch screens (there a drag on
+	 * the page must keep panning and turning pages).
+	 */
+	let selectChosen: boolean | null = null;
 </script>
 
 <script lang="ts">
@@ -39,7 +45,7 @@
 	import { defaultStroke, finishStroke, penBox, reboxPatch, type Pt } from './pen';
 	import { requestBlanks, snapEligible, snappedText, snappedTick } from './snap-cache';
 	import { pageTextOf, textWarm } from './page-text.svelte';
-	import { boundsOf, crossSize, selectionRects, selectionText, shownLayout, wordAtEnd, wordNear } from './text-select';
+	import { boundsOf, copyText, crossSize, selectionRects, selectionText, shownLayout, wordAtEnd, wordNear } from './text-select';
 	import Spinner from '../ui/Spinner.svelte';
 	import {
 		arrowDelta,
@@ -239,7 +245,11 @@
 	}
 
 	function vpMove(e: PointerEvent) {
-		if (!pointers.has(e.pointerId)) return;
+		if (!pointers.has(e.pointerId)) {
+			// A mouse resting over words shows the text cursor while Select text is on.
+			if (e.pointerType === 'mouse' && pointers.size === 0) overText = !!(selecting && layout && wordNear(layout, toFraction(e), nearTolerance()) >= 0);
+			return;
+		}
 		const p = vpPoint(e);
 		pointers.set(e.pointerId, p);
 		if (pmode === 'pinch' && pointers.size >= 2) {
@@ -251,12 +261,14 @@
 		const dy = p.y - pstart.y;
 		if (pmode === 'tap' && Math.hypot(dx, dy) > 8) {
 			const f0 = screenToFraction(pstart, pstart.view, base);
-			if (textArmed) {
-				// Text: a drag that starts on or near a word selects; elsewhere it pans or turns
-				// the page as usual. Until the words are read, a drag on the page does nothing.
+			if (textArmed || (selecting && !downOnField)) {
+				// Text (the highlighter, or Select text): a drag that starts on or near a word
+				// selects; elsewhere it pans or turns the page as usual. Until the words are
+				// read, a drag on the page does nothing (Select text is not on until then).
 				const a = layout ? wordNear(layout, f0, nearTolerance()) : -1;
 				if (a >= 0) {
 					pmode = 'select';
+					textSel = null;
 					sel = { anchor: a, end: a, rects: selectionRects(layout!, a, a) };
 				} else if (!layout && insidePage(f0)) pmode = 'hold';
 				else pmode = pstart.view.zoom > 1.0001 ? 'pan' : 'swipe';
@@ -421,8 +433,9 @@
 	}
 
 	// ------------------------------------------------------------ tools
-	type Tool = 'signature' | 'initials' | 'text' | 'date' | 'check' | 'cross' | 'dot' | 'highlight' | 'redact' | 'crop';
+	type Tool = 'select' | 'signature' | 'initials' | 'text' | 'date' | 'check' | 'cross' | 'dot' | 'highlight' | 'redact' | 'crop';
 	const TOOLS: { id: Tool; label: string; icon: IconName }[] = [
+		{ id: 'select', label: 'Select text', icon: 'select-text' },
 		{ id: 'signature', label: 'Signature', icon: 'sign' },
 		{ id: 'initials', label: 'Initials', icon: 'initials' },
 		{ id: 'text', label: 'Text', icon: 'text' },
@@ -496,8 +509,12 @@
 	}
 
 	let armed = $state<Tool | null>(null);
+	/** Select text is wanted: the tool when no other is armed (see selectChosen). */
+	let selectOn = $state(selectChosen ?? finePointer());
 	/** The page's words, read in the engine worker once per page (after the tool is first armed, or once MuPDF is loaded). */
-	const textState = $derived(page && source && (armed === 'highlight' || textWarm()) ? pageTextOf(app.engine, source, page.pageIndex) : null);
+	const textState = $derived(
+		page && source && (armed === 'highlight' || (selectOn && !armed && !cropMode) || textWarm()) ? pageTextOf(app.engine, source, page.pageIndex) : null
+	);
 	/** True / false once known; null while the words are being read. */
 	const pageHasText = $derived(
 		textState?.status === 'ready' ? textState.text.words.length > 0 : textState?.status === 'failed' ? false : null
@@ -521,6 +538,11 @@
 	const penArmed = $derived(armed === 'highlight' && hlMode === 'pen');
 	/** The text highlighter is the armed tool: a drag from a word selects words. */
 	const textArmed = $derived(armed === 'highlight' && hlMode === 'text');
+	/**
+	 * Select text is the active tool: wanted, no other tool armed, not cropping, and this
+	 * page has words. A drag from a word selects words; nothing is written to the page.
+	 */
+	const selecting = $derived(selectOn && !armed && !cropMode && pageHasText === true);
 	let armedAsset = $state.raw<Asset | null>(null);
 	let padOpen = $state(false);
 	let padKind = $state<'signature' | 'initials'>('signature');
@@ -549,6 +571,11 @@
 			return;
 		}
 		if (cropMode) exitCrop();
+		textSel = null;
+		if (t === 'select') {
+			pickSelect();
+			return;
+		}
 		if (armed === t) {
 			disarm();
 			return;
@@ -565,6 +592,22 @@
 			// No pointer to aim with: place in the middle, selected, so arrow keys move it.
 			place(t, { x: 0.5, y: 0.5 }, true);
 		} else announce(armedHint);
+	}
+
+	/** The Select text tool: on (putting away any other tool), or off when it is the active tool. */
+	function pickSelect() {
+		if (selecting) {
+			selectOn = false;
+			selectChosen = false;
+			announce('Select text put away.');
+			return;
+		}
+		disarm();
+		selectOn = true;
+		selectChosen = true;
+		const msg = pageHasText === false ? 'This page has no selectable text.' : SELECT_HINT;
+		showNote(msg);
+		announce(msg);
 	}
 
 	function onPicked(asset: Asset) {
@@ -593,7 +636,12 @@
 		if (armed && inside && armed !== 'highlight') place(armed, f, false);
 		else {
 			select(null);
-			if (textArmed && inside) textTap(f);
+			if (textArmed && inside) textTap(f, (i) => highlightWords(i, i, selectionRects(layout!, i, i)));
+			else if (selecting) {
+				// A tap clears the selection; a double click (or double tap) on a word selects it.
+				textSel = null;
+				if (inside) textTap(f, (i) => chooseWords(i, i));
+			}
 		}
 	}
 
@@ -826,7 +874,8 @@
 		const s = sel;
 		sel = null;
 		if (!s || !layout || !s.rects.length) return;
-		highlightWords(s.anchor, s.end, s.rects);
+		if (armed === 'highlight') highlightWords(s.anchor, s.end, s.rects);
+		else chooseWords(s.anchor, s.end, s.rects);
 	}
 
 	function highlightWords(a: number, b: number, rects: StampBox[]) {
@@ -840,7 +889,7 @@
 	/** The last tap with the text highlighter, for double taps. */
 	let lastTap: { t: number; f: Point } | null = null;
 
-	function textTap(f: Point) {
+	function textTap(f: Point, onWord: (i: number) => void) {
 		const now = performance.now();
 		const prev = lastTap;
 		lastTap = { t: now, f };
@@ -850,7 +899,89 @@
 		if (Math.hypot((f.x - prev.f.x) * pw, (f.y - prev.f.y) * ph) > 24) return;
 		lastTap = null;
 		const i = wordNear(layout, f, nearTolerance());
-		if (i >= 0) highlightWords(i, i, selectionRects(layout, i, i));
+		if (i >= 0) onWord(i);
+	}
+
+	// ------------------------------------------------------------ Select text (copy, nothing written)
+	const SELECT_HINT = 'Drag across the words to select them, then copy.';
+	/** A mouse or trackpad is the main pointer (Select text is then on by default). */
+	function finePointer() {
+		return typeof matchMedia === 'function' && matchMedia('(pointer: fine)').matches && !matchMedia('(pointer: coarse)').matches;
+	}
+	/** The words chosen with Select text (kept after release, until a tap, Escape or another page). */
+	let textSel = $state.raw<{ anchor: number; end: number; rects: StampBox[] } | null>(null);
+	/** A mouse is over a word with Select text on: the text cursor shows. */
+	let overText = $state(false);
+	/** The Copy button says "Copied" for a moment. */
+	let copied = $state(false);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+	const textSelWords = $derived(textSel ? Math.abs(textSel.end - textSel.anchor) + 1 : 0);
+
+	// The selection belongs to the words as shown: a new page, turn or crop drops it.
+	const selKey = $derived(`${currentId}|${page?.rotation}|${aspect}|${page?.crop ? Object.values(page.crop).join() : ''}|${textState?.status}`);
+	$effect(() => {
+		void selKey;
+		textSel = null;
+	});
+	$effect(() => {
+		if (!selecting) {
+			textSel = null;
+			overText = false;
+		}
+	});
+
+	function chooseWords(a: number, b: number, rects?: StampBox[]) {
+		if (!layout) return;
+		textSel = { anchor: a, end: b, rects: rects ?? selectionRects(layout, a, b) };
+		copied = false;
+		const n = Math.abs(b - a) + 1;
+		announce(`Selected ${n === 1 ? `"${selectionText(layout, a, b)}"` : `${n} words`}. Press ${isMac() ? 'Command' : 'Control'}+C to copy.`);
+	}
+
+	function selectAllText() {
+		if (!layout?.words.length) return;
+		chooseWords(0, layout.words.length - 1);
+	}
+
+	const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+	/** Copy with the older clipboard path (no permission needed, inside a click or key press). */
+	function legacyCopy(text: string): boolean {
+		const put = (e: ClipboardEvent) => {
+			e.clipboardData?.setData('text/plain', text);
+			e.preventDefault();
+		};
+		document.addEventListener('copy', put, true);
+		try {
+			return document.execCommand('copy');
+		} catch {
+			return false;
+		} finally {
+			document.removeEventListener('copy', put, true);
+		}
+	}
+
+	async function copySelection() {
+		const s = textSel;
+		if (!s || !layout) return;
+		const text = copyText(layout, s.anchor, s.end);
+		let ok = false;
+		try {
+			await navigator.clipboard.writeText(text);
+			ok = true;
+		} catch {
+			ok = legacyCopy(text);
+		}
+		if (!ok) {
+			showNote('Could not copy. This browser blocked the clipboard.');
+			announce('Could not copy. This browser blocked the clipboard.');
+			return;
+		}
+		copied = true;
+		clearTimeout(copiedTimer);
+		copiedTimer = setTimeout(() => (copied = false), 1500);
+		const n = Math.abs(s.end - s.anchor) + 1;
+		announce(`Copied ${n === 1 ? 'the word' : `${n} words`}.`);
 	}
 
 	/** This page has no text to select: Pen stands in for Text, and the note says why (once per visit). */
@@ -894,6 +1025,7 @@
 	}
 
 	function select(id: string | null, focus = false) {
+		if (id) textSel = null;
 		if (id !== selectedId) finishEditing(true);
 		selectedId = id;
 		if (id && focus) void tick().then(() => stampEl(id)?.focus());
@@ -1452,7 +1584,13 @@
 		if (typingTarget(e.target)) return;
 		const mod = e.ctrlKey || e.metaKey;
 		const k = e.key.toLowerCase();
-		if (mod && k === 'z') {
+		if (mod && k === 'c' && textSel && !e.shiftKey && !e.altKey) {
+			e.preventDefault();
+			void copySelection();
+		} else if (mod && k === 'a' && selecting && !e.shiftKey && !e.altKey) {
+			e.preventDefault();
+			selectAllText();
+		} else if (mod && k === 'z') {
 			e.preventDefault();
 			if (e.shiftKey) redo();
 			else undo();
@@ -1471,6 +1609,9 @@
 				e.preventDefault();
 				disarm();
 				announce('Tool put away.');
+			} else if (textSel) {
+				e.preventDefault();
+				textSel = null;
 			} else if (selectedId) {
 				e.preventDefault();
 				selectedId = null;
@@ -1506,6 +1647,7 @@
 		document.documentElement.style.overflow = 'hidden';
 		return () => {
 			clearTimeout(noteTimer);
+			clearTimeout(copiedTimer);
 			document.documentElement.style.overflow = prevOverflow;
 			if (store.gestureActive) store.commitGesture();
 			if (opener && opener.isConnected) opener.focus({ preventScroll: true });
@@ -1519,7 +1661,7 @@
 	let moreOpen = $state(false);
 	let moreIndex = $state(0);
 	/** A tool from the sheet that is armed: the More slot shows it. */
-	const armedMore = $derived(MORE_TOOLS.find((t) => t.id === armed) ?? null);
+	const armedMore = $derived(MORE_TOOLS.find((t) => t.id === armed || (t.id === 'select' && selecting)) ?? null);
 	const moreLabel = $derived(armedMore ? `${armedMore.label}, armed. More tools` : 'More tools');
 
 	const moreItems = () => (moreMenu ? [...moreMenu.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')] : []);
@@ -1643,7 +1785,7 @@
 				type="button"
 				class="tool"
 				class:in-more={!PHONE_BAR.has(t.id)}
-				aria-pressed={armed === t.id || (t.id === 'crop' && cropMode)}
+				aria-pressed={armed === t.id || (t.id === 'crop' && cropMode) || (t.id === 'select' && selecting)}
 				data-tool={t.id}
 				onclick={(e) => toolClick(t.id, e)}
 			>
@@ -1676,7 +1818,7 @@
 							type="button"
 							role="menuitemradio"
 							class="more-item"
-							aria-checked={armed === t.id || (t.id === 'crop' && cropMode)}
+							aria-checked={armed === t.id || (t.id === 'crop' && cropMode) || (t.id === 'select' && selecting)}
 							tabindex={i === moreIndex ? 0 : -1}
 							data-tool={t.id}
 							onclick={(e) => pickMore(t.id, e)}
@@ -1700,8 +1842,9 @@
 			bind:clientHeight={vpH}
 			class="viewport"
 			class:armed={!!armed}
+			class:over-text={overText}
 			role="group"
-			aria-label={`Page ${index + 1}. ${armed ? armedHint : 'Choose a tool to add a stamp. Pinch or Ctrl+scroll to zoom.'}`}
+			aria-label={`Page ${index + 1}. ${armed ? armedHint : `${selecting ? `${SELECT_HINT} ` : ''}Choose a tool to add a stamp. Pinch or Ctrl+scroll to zoom.`}`}
 			tabindex="0"
 			onpointerdown={vpDown}
 			onpointermove={vpMove}
@@ -1835,6 +1978,14 @@
 								data-testid="draft-text"
 								aria-hidden="true"
 							/>
+						{/if}
+						{#if !armed && (sel || textSel)}
+							<!-- Words chosen with Select text: a tint over the page, never part of it. -->
+							<div class="text-sel" data-testid="text-selection" aria-hidden="true">
+								{#each (sel ?? textSel)!.rects as r, i (i)}
+									<span style="left:{r.x * 100}%;top:{r.y * 100}%;width:{r.w * 100}%;height:{r.h * 100}%"></span>
+								{/each}
+							</div>
 						{/if}
 						{#if penDraft && armed === 'highlight'}
 							<!-- The stroke as it will be stored and exported: one path, one colour, round ends. -->
@@ -1978,6 +2129,11 @@
 					<Button variant="quiet" icon="extract" onclick={() => (copyOpen = true)}>Copy to pages…</Button>
 				{/if}
 				<IconButton icon="trash" label="Delete" shortcut="Delete" onclick={removeSelected} />
+			</div>
+		{:else if textSel && !armed}
+			<div class="selbar textbar" role="toolbar" aria-label="Selected text" data-testid="text-bar">
+				<span class="sel-count num">{textSelWords === 1 ? '1 word' : `${textSelWords} words`}</span>
+				<Button variant="quiet" icon="duplicate" aria-keyshortcuts={isMac() ? 'Meta+C' : 'Control+C'} onclick={() => void copySelection()}>{copied ? 'Copied' : 'Copy'}</Button>
 			</div>
 		{/if}
 	</div>
@@ -2123,6 +2279,29 @@
 
 	.viewport.armed {
 		cursor: crosshair;
+	}
+
+	.viewport.over-text {
+		cursor: text;
+	}
+
+	.text-sel {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+	}
+
+	.text-sel span {
+		position: absolute;
+		background: var(--text-selection);
+		mix-blend-mode: multiply;
+	}
+
+	.sel-count {
+		padding: 0 var(--s-2);
+		font-size: var(--text-caption);
+		color: var(--ink-soft);
+		white-space: nowrap;
 	}
 
 	.page {
