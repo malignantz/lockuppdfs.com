@@ -1,8 +1,8 @@
 <script lang="ts">
 	// One quiet note after a file has been saved, on the campaign build only. It makes no
-	// request of its own, has no effect on the download, and is not shown again once
+	// request of its own (its link goes through /give, which counts the click), has no effect on the download, and is not shown again once
 	// dismissed. Render it only after the save has happened.
-	import { campaign } from './site';
+	import { campaign, giveHref } from './site';
 	import { askState, dismissAsk, readAskState } from './ask-state.svelte';
 
 	readAskState();
@@ -17,7 +17,7 @@
 		<p class="goal">{ask.goal}</p>
 		<ul class="links">
 			{#each ask.links as link (link.href)}
-				<li><a href={link.href} target="_blank" rel="noopener noreferrer">{link.label}</a></li>
+				<li><a href={giveHref(link, 'done')} target="_blank" rel="noopener noreferrer">{link.label}</a></li>
 			{/each}
 		</ul>
 		<p class="note caption">{ask.note}</p>

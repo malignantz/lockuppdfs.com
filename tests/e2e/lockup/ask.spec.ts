@@ -59,8 +59,8 @@ test('after a real export: download first, then one quiet note; dismissed it sta
 	expect(links.length).toBe(1);
 	for (const a of links) {
 		const href = (await a.getAttribute('href'))!;
-		expect(href).toMatch(/^https:\/\//);
-		expect(siteSource, 'link comes from site.ts').toContain(href);
+		expect(href).toBe('/give?from=done');
+		expect(siteSource, 'link comes from site.ts').toContain("via: '/give'");
 		expect(siteSource).toContain((await a.innerText()).trim());
 		await expect(a).toHaveAttribute('target', '_blank');
 		await expect(a).toHaveAttribute('rel', 'noopener noreferrer');
@@ -108,7 +108,7 @@ test('the privacy page explains the donation link', async ({ page }) => {
 	const section = page.locator('#donation-links');
 	await expect(section).toBeVisible();
 	await expect(section).toContainText('not run by the charity');
-	await expect(section).toContainText('does not know whether the link was followed');
+	await expect(section).toContainText('Clicks on the link are counted. Gifts are not.');
 });
 
 test('the privacy page says visits are counted by our server and files are not', async ({ page }) => {

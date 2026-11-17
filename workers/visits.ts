@@ -5,7 +5,8 @@
 // served by the assets layer without it. It always answers with the assets response,
 // untouched. For a real page load it also sends one pageview to the self-hosted visit
 // counter (Umami), after the response, so the visitor never waits for it and a dead
-// counter can never slow or break a page. Nothing is added to the page: the browser
+// counter can never slow or break a page. The one other thing it does: /give, where the
+// donation link points, counts the click the same way and forwards to the fundraiser. Nothing is added to the page: the browser
 // still talks only to this origin.
 //
 // What is sent: the page path (no query string, except the campaign tags below), the
@@ -40,6 +41,8 @@ export interface Pageview {
 		title: string;
 		ip?: string;
 		userAgent?: string;
+		name?: string;
+		data?: Record<string, string>;
 	};
 }
 
@@ -105,12 +108,47 @@ export function pageview(request: Request, website: string): Pageview {
 	return { type: 'event', payload };
 }
 
+/** The donation link on the site points here; the Worker counts the click and forwards. */
+export const GIVE_PATH = '/give';
+/** Where /give forwards to. The same address as the link in src/lib/site/site.ts (a test checks). */
+export const GIVE_URL = 'https://give.missingkids.org/LockUpPDFs';
+const PLACES = new Set(['splash', 'done']);
+
+/**
+ * The click on the donation link, as a named event on the start page. `from` says which of
+ * the two links it was; the campaign tags the page was opened with ride along on the link.
+ */
+export function giveClick(request: Request, website: string): Pageview {
+	const url = new URL(request.url);
+	const body = pageview(request, website);
+	delete body.payload.referrer;
+	url.pathname = '/';
+	body.payload.url = pathOf(url);
+	body.payload.name = 'give-click';
+	const from = url.searchParams.get('from') ?? '';
+	body.payload.data = { place: PLACES.has(from) ? from : 'other' };
+	return body;
+}
+
+/** A person following the link, not a prefetch or a link checker's HEAD. */
+export function isGiveClick(request: Request): boolean {
+	if (request.method !== 'GET') return false;
+	const h = request.headers;
+	const purpose = `${h.get('sec-purpose') ?? ''} ${h.get('purpose') ?? ''} ${h.get('x-moz') ?? ''}`.toLowerCase();
+	return !/prefetch|prerender|preview/.test(purpose);
+}
+
 /** Send one pageview. Never throws, never takes longer than TIMEOUT_MS. */
-export async function send(env: Env, request: Request, fetcher: typeof fetch = fetch): Promise<void> {
+export async function send(
+	env: Env,
+	request: Request,
+	fetcher: typeof fetch = fetch,
+	build: (request: Request, website: string) => Pageview = pageview
+): Promise<void> {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 	try {
-		const body = pageview(request, env.UMAMI_WEBSITE_ID);
+		const body = build(request, env.UMAMI_WEBSITE_ID);
 		const res = await fetcher(env.UMAMI_URL, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json', 'user-agent': body.payload.userAgent ?? '' },

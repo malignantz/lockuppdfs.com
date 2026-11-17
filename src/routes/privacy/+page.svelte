@@ -105,8 +105,9 @@
 			</p>
 			<ul class="points">
 				<li>
-					<strong>It is an ordinary link.</strong> It goes straight to the charity's own donation site, and your
-					browser opens it only if you choose to follow it. Nothing is loaded from the charity beforehand.
+					<strong>It is an ordinary link.</strong> It passes through this site's own address <code>/give</code>,
+					which sends you on to the charity's own donation site, and your browser opens it only if you choose to
+					follow it. Nothing is loaded from the charity beforehand.
 				</li>
 				<li>
 					<strong>No money and no data pass through this site.</strong> Any gift is made on the charity's own site,
@@ -116,8 +117,10 @@
 					<strong>The fundraiser is a supporter's own, not run by the charity.</strong>
 				</li>
 				<li>
-					<strong>It does not know whether the link was followed,</strong> and keeps no count or record of it. The
-					only thing remembered is that you closed the note, and only until you close this tab.
+					<strong>Clicks on the link are counted. Gifts are not.</strong> When you follow the link, our server adds
+					one click to the visit counter, with the same details as a page visit. This site cannot see whether you
+					gave, or how much. In your browser, the only thing remembered is that you closed the note, and only until
+					you close this tab.
 				</li>
 			</ul>
 		</section>

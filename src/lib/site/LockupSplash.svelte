@@ -3,7 +3,7 @@
 	import Icon from '../ui/Icon.svelte';
 	import type { IconName } from '../ui/icons';
 	import BookingPhoto from './BookingPhoto.svelte';
-	import type { Campaign } from './site';
+	import { giveHref, type Campaign } from './site';
 
 	/**
 	 * The campaign build's start page ("Booking photo"): a booking photo of a PDF, the
@@ -112,7 +112,7 @@
 			<ul class="give-links">
 				{#each campaign.ask.links as link (link.href)}
 					<li>
-						<a href={link.href} target="_blank" rel="noopener noreferrer"
+						<a href={giveHref(link, 'splash')} target="_blank" rel="noopener noreferrer"
 							>{link.label}<svg class="ext" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"
 								><path d="M5 3h8v8M13 3 3.5 12.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" /></svg
 							></a

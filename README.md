@@ -44,7 +44,8 @@ Its art lives in `design/lockup/` (mark, display face, share image source); run
 in `vite dev` with `VITE_SITE=lockup` the headline shows in a fallback face.
 The campaign site's Worker (`workers/lockup-visits.ts`) counts page loads server-side in
 the self-hosted Umami (stats.meseeks.xyz) and passes every response through unchanged; it runs
-only for the pages listed in `run_worker_first`, and the browser still contacts no other origin.
+only for the pages listed in `run_worker_first`, and the browser still contacts no other origin. The donation link
+points at `/give` on the same site, where the Worker counts the click and forwards to the fundraiser.
 The plain site has no Worker script and counts nothing.
 
 ```sh

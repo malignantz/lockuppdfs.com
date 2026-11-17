@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import worker from '../../workers/lockup-visits';
-import { isPageView, languageOf, pageview, referrerOf, send, TIMEOUT_MS, type Env } from '../../workers/visits';
+import { readFileSync } from 'node:fs';
+import { GIVE_URL, giveClick, isPageView, languageOf, pageview, referrerOf, send, TIMEOUT_MS, type Env } from '../../workers/visits';
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 const nav = { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document', 'user-agent': UA };
@@ -137,6 +138,47 @@ describe('sending', () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+});
+
+describe('the donation link', () => {
+	it('forwards to the fundraiser and counts the click in the background', async () => {
+		const c = ctx();
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
+		try {
+			const assets = vi.fn(async () => ok());
+			const res = await worker.fetch(req('/give?from=splash&utm_source=facebook&x=1'), env(assets), c);
+			expect(res.status).toBe(302);
+			expect(res.headers.get('location')).toBe(GIVE_URL);
+			expect(res.headers.get('cache-control')).toBe('no-store');
+			expect(assets).not.toHaveBeenCalled();
+			await Promise.all(c.waits);
+			expect(fetchSpy).toHaveBeenCalledOnce();
+			const sent = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+			expect(sent.payload).toMatchObject({ url: '/?utm_source=facebook', name: 'give-click', data: { place: 'splash' } });
+		} finally {
+			fetchSpy.mockRestore();
+		}
+	});
+
+	it('still forwards when it does not count', async () => {
+		for (const r of [req('/give', nav, 'HEAD'), req('/give', { ...nav, 'sec-purpose': 'prefetch' })]) {
+			const c = ctx();
+			const res = await worker.fetch(r, env(), c);
+			expect(res.headers.get('location')).toBe(GIVE_URL);
+			expect(c.waits).toHaveLength(0);
+		}
+	});
+
+	it('names the place and drops the referrer', () => {
+		const p = giveClick(req('/give?from=elsewhere', { ...nav, referer: 'https://lockuppdfs.com/' }), 'id').payload;
+		expect(p).toMatchObject({ url: '/', name: 'give-click', data: { place: 'other' } });
+		expect(p.referrer).toBeUndefined();
+		expect(giveClick(req('/give?from=done'), 'id').payload.data).toEqual({ place: 'done' });
+	});
+
+	it('goes where the link in site.ts says', () => {
+		expect(readFileSync('src/lib/site/site.ts', 'utf8')).toContain(`href: '${GIVE_URL}', via: '/give'`);
 	});
 });
 

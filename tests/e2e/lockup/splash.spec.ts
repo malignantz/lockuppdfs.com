@@ -110,9 +110,9 @@ test('the giving links are on the splash, from site.ts, as plain new-tab links; 
 	await expect(band).toContainText('Our goal: $25,000 for NCMEC by November 2027.');
 	const ncmec = band.getByRole('link', { name: 'Give to NCMEC' });
 	await expect(band.getByRole('link')).toHaveCount(1);
-	await expect(ncmec).toHaveAttribute('href', 'https://give.missingkids.org/LockUpPDFs');
+	await expect(ncmec).toHaveAttribute('href', '/give?from=splash');
 	for (const a of [ncmec]) {
-		expect(siteSource).toContain((await a.getAttribute('href'))!);
+		expect(siteSource).toContain("href: 'https://give.missingkids.org/LockUpPDFs', via: '/give'");
 		await expect(a).toHaveAttribute('target', '_blank');
 		await expect(a).toHaveAttribute('rel', 'noopener noreferrer');
 		await expect(a).not.toHaveAttribute('ping', /.*/);

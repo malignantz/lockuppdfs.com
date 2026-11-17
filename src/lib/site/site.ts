@@ -10,8 +10,11 @@ export type SiteId = 'plain' | 'lockup';
 export interface CampaignLink {
 	label: string;
 	// The charity's own donation page. A plain link the visitor chooses to
-	// follow: no script, widget, tracker or request is made on their behalf.
+	// follow: no script, widget or request is made on their behalf.
 	href: string;
+	// A path on this site that forwards to href and counts the click server-side
+	// (workers/visits.ts). The link on the page points here when it is set.
+	via?: string;
 }
 
 export interface Campaign {
@@ -101,7 +104,7 @@ const lockup: Campaign = {
 		goal: 'Our goal: $25,000 for NCMEC by November 2027.',
 		links: [
 			// One link on purpose: every gift counts toward the one fundraiser.
-			{ label: 'Give to NCMEC', href: 'https://give.missingkids.org/LockUpPDFs' }
+			{ label: 'Give to NCMEC', href: 'https://give.missingkids.org/LockUpPDFs', via: '/give' }
 		],
 		note: 'This link goes to the LockUpPDFs fundraiser on the charity’s own donation site. No money or data passes through this site, and the fundraiser is a supporter’s own, not run by the charity.'
 	}
@@ -112,3 +115,23 @@ export const SITE_HOST = SITE_ID === 'lockup' ? 'lockuppdfs.com' : 'pdf.garretth
 
 // null on the plain site: every campaign surface renders nothing.
 export const campaign: Campaign | null = SITE_ID === 'lockup' ? lockup : null;
+
+const LINK_TAGS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'];
+
+/**
+ * Where a donation link on the page points: its forwarding path, with which of the two
+ * links it is and the campaign tags this page was opened with, so a click can be told
+ * apart by the post that brought the visitor. Without a forwarding path, the charity's page.
+ */
+export function giveHref(link: CampaignLink, place: 'splash' | 'done'): string {
+	if (!link.via) return link.href;
+	const query = new URLSearchParams({ from: place });
+	if (typeof location !== 'undefined') {
+		const here = new URLSearchParams(location.search);
+		for (const tag of LINK_TAGS) {
+			const value = here.get(tag);
+			if (value) query.set(tag, value);
+		}
+	}
+	return `${link.via}?${query}`;
+}
