@@ -56,7 +56,7 @@ test('after a real export: download first, then one quiet note; dismissed it sta
 	expect(siteSource, 'lead comes from site.ts').toContain(lead);
 	expect(siteSource, 'note comes from site.ts').toContain(note);
 	const links = await ask(page).getByRole('link').all();
-	expect(links.length).toBeGreaterThanOrEqual(2);
+	expect(links.length).toBe(1);
 	for (const a of links) {
 		const href = (await a.getAttribute('href'))!;
 		expect(href).toMatch(/^https:\/\//);
@@ -101,14 +101,14 @@ test('the download completes on its own, with the note shown only afterwards', a
 	await expect(ask(page)).toBeVisible();
 });
 
-test('the privacy page explains the donation links', async ({ page }) => {
+test('the privacy page explains the donation link', async ({ page }) => {
 	await page.goto('/privacy');
 	await expect(page.locator('body')).not.toContainText('pdf.garrettholmes.com');
 	await expect(page.locator('main code', { hasText: 'lockuppdfs.com' })).toBeVisible();
 	const section = page.locator('#donation-links');
 	await expect(section).toBeVisible();
-	await expect(section).toContainText('not connected to either charity');
-	await expect(section).toContainText('does not know whether a link was followed');
+	await expect(section).toContainText('not run by the charity');
+	await expect(section).toContainText('does not know whether the link was followed');
 });
 
 test('the note fits a phone-width screen and its controls are comfortable to tap', async ({ browser, baseURL }) => {

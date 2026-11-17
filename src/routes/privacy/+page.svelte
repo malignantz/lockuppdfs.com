@@ -88,24 +88,24 @@
 
 	{#if campaign}
 		<section id="donation-links">
-			<h2>The donation links</h2>
+			<h2>The donation link</h2>
 			<p class="para">
-				After you save a file, this site shows a short note with two links to charities' donation pages.
+				After you save a file, this site shows a short note with one link to a fundraiser on a charity's own donation site.
 			</p>
 			<ul class="points">
 				<li>
-					<strong>They are ordinary links.</strong> Each goes straight to that charity's own donation page, and your
-					browser opens it only if you choose to follow it. Nothing is loaded from either charity beforehand.
+					<strong>It is an ordinary link.</strong> It goes straight to the charity's own donation site, and your
+					browser opens it only if you choose to follow it. Nothing is loaded from the charity beforehand.
 				</li>
 				<li>
-					<strong>No money and no data pass through this site.</strong> Any gift is made on the charity's own page,
+					<strong>No money and no data pass through this site.</strong> Any gift is made on the charity's own site,
 					under that charity's own terms.
 				</li>
 				<li>
-					<strong>This site is not connected to either charity.</strong>
+					<strong>The fundraiser is a supporter's own, not run by the charity.</strong>
 				</li>
 				<li>
-					<strong>It does not know whether a link was followed,</strong> and keeps no count or record of it. The
+					<strong>It does not know whether the link was followed,</strong> and keeps no count or record of it. The
 					only thing remembered is that you closed the note, and only until you close this tab.
 				</li>
 			</ul>

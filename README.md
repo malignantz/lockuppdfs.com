@@ -33,7 +33,7 @@ npx wrangler deploy  # after a build: Cloudflare Worker, static assets only
 
 The same app is built twice. `VITE_SITE=lockup` at build time makes the campaign
 site (LockUpPDFs.com): its own title, description and share tags in the static HTML,
-its name and mark in the header, a booking-photo start page with the donation links, and a quiet ask after
+its name and mark in the header, a booking-photo start page with the donation link, and a quiet ask after
 a download. Without it you get the plain site, pdf.garrettholmes.com, unchanged.
 All campaign wording and the charity links live in `src/lib/site/site.ts` and nowhere else.
 The campaign start page is a booking photo of a PDF (`src/lib/site/LockupSplash.svelte` and

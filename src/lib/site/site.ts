@@ -3,7 +3,7 @@
 // build time with VITE_SITE=lockup. Nothing here is decided at run time, so
 // the prerendered pages carry the right title and description for each site.
 //
-// All campaign wording and the charity links live in this file and nowhere else.
+// All campaign wording and the charity link live in this file and nowhere else.
 
 export type SiteId = 'plain' | 'lockup';
 
@@ -97,10 +97,10 @@ const lockup: Campaign = {
 	ask: {
 		lead: 'That was free. Donate to charity, not PDF software companies: give what you would have paid to child protection instead.',
 		links: [
-			{ label: 'Give to NCMEC', href: 'https://give.missingkids.org/' },
-			{ label: 'Give to Thorn', href: 'https://www.thorn.org/donate/' }
+			// One link on purpose: every gift counts toward the one fundraiser.
+			{ label: 'Give to NCMEC', href: 'https://give.missingkids.org/LockUpPDFs' }
 		],
-		note: 'These links go to each charity’s own donation page. No money or data passes through this site, and it is not connected to either charity.'
+		note: 'This link goes to the LockUpPDFs fundraiser on the charity’s own donation site. No money or data passes through this site, and the fundraiser is a supporter’s own, not run by the charity.'
 	}
 };
 

@@ -106,12 +106,11 @@ test('the giving links are on the splash, from site.ts, as plain new-tab links; 
 	await expect(band).toBeVisible();
 	await expect(band.getByRole('heading', { name: 'Donate to charity, not PDF software companies.' })).toBeVisible();
 	await expect(band).toContainText('We want PDF files charged in a court of law. Give what you would have paid to the people who protect children.');
-	await expect(band).toContainText('not connected to either charity');
+	await expect(band).toContainText('not run by the charity');
 	const ncmec = band.getByRole('link', { name: 'Give to NCMEC' });
-	const thorn = band.getByRole('link', { name: 'Give to Thorn' });
-	await expect(ncmec).toHaveAttribute('href', 'https://give.missingkids.org/');
-	await expect(thorn).toHaveAttribute('href', 'https://www.thorn.org/donate/');
-	for (const a of [ncmec, thorn]) {
+	await expect(band.getByRole('link')).toHaveCount(1);
+	await expect(ncmec).toHaveAttribute('href', 'https://give.missingkids.org/LockUpPDFs');
+	for (const a of [ncmec]) {
 		expect(siteSource).toContain((await a.getAttribute('href'))!);
 		await expect(a).toHaveAttribute('target', '_blank');
 		await expect(a).toHaveAttribute('rel', 'noopener noreferrer');

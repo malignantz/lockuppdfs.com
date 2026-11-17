@@ -32,7 +32,8 @@ describe('site variant', () => {
 			'That was free. Donate to charity, not PDF software companies: give what you would have paid to child protection instead.'
 		);
 		expect(campaign?.splash.chips.map((c) => c.label)).toEqual(['Combine', 'Fill & sign', 'Make smaller', 'Pictures to PDF']);
-		expect(campaign?.ask.links.map((l) => l.label)).toEqual(['Give to NCMEC', 'Give to Thorn']);
+		expect(campaign?.ask.links.map((l) => l.label)).toEqual(['Give to NCMEC']);
+		expect(campaign?.ask.links.map((l) => l.href)).toEqual(['https://give.missingkids.org/LockUpPDFs']);
 	});
 
 	it('keeps the campaign wording within its own rules', async () => {
@@ -41,7 +42,7 @@ describe('site variant', () => {
 		const text = JSON.stringify(campaign);
 		// The joke is aimed at offenders by the slang only; the word itself is never spelled out.
 		expect(text).not.toMatch(/pedo|paedo/i);
-		// No claim of a link with either charity, and no owner's name on the campaign site.
+		// No claim that the charity runs or backs the site, and no owner's name on the campaign site.
 		expect(text).not.toMatch(/partner|official|endorse|garrett|holmes/i);
 		for (const l of campaign!.ask.links) expect(l.href).toMatch(/^https:\/\//);
 	});
