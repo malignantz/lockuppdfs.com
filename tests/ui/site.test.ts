@@ -23,7 +23,7 @@ describe('site variant', () => {
 		expect(campaign?.splash.statement).toBe('Free PDF tools. Combine, sign, shrink, convert.');
 		expect(campaign?.splash.give.heading).toBe('Donate to charity, not PDF software companies.');
 		expect(campaign?.splash.give.lead).toBe(
-			'Other sites charge you for the file. This one never will. Give what you would have paid to the people who protect children from the other kind.'
+			'Some sites charge for PDF files. We want PDF files charged in a court of law. Give what you would have paid to the people who protect children.'
 		);
 		expect(campaign?.ask.lead).toBe(
 			'That was free. Donate to charity, not PDF software companies: give what you would have paid to child protection instead.'

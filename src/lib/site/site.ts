@@ -67,7 +67,7 @@ const lockup: Campaign = {
 		fee: { label: 'Download fee', amount: '$0.00' },
 		give: {
 			heading: 'Donate to charity, not PDF software companies.',
-			lead: 'Other sites charge you for the file. This one never will. Give what you would have paid to the people who protect children from the other kind.'
+			lead: 'Some sites charge for PDF files. We want PDF files charged in a court of law. Give what you would have paid to the people who protect children.'
 		}
 	},
 	ask: {

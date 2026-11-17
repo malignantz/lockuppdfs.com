@@ -92,7 +92,7 @@ test('the giving links are on the splash, from site.ts, as plain new-tab links; 
 	const band = give(page);
 	await expect(band).toBeVisible();
 	await expect(band.getByRole('heading', { name: 'Donate to charity, not PDF software companies.' })).toBeVisible();
-	await expect(band).toContainText('Give what you would have paid to the people who protect children from the other kind.');
+	await expect(band).toContainText('We want PDF files charged in a court of law. Give what you would have paid to the people who protect children.');
 	await expect(band).toContainText('not connected to either charity');
 	const ncmec = band.getByRole('link', { name: 'Give to NCMEC' });
 	const thorn = band.getByRole('link', { name: 'Give to Thorn' });
