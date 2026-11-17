@@ -17,7 +17,7 @@ const campaignMock = {
 
 async function load(campaign: unknown) {
 	vi.resetModules();
-	vi.doMock('../../src/lib/site/site', () => ({ SITE_ID: campaign ? 'lockup' : 'plain', campaign }));
+	vi.doMock('../../src/lib/site/site', () => ({ SITE_ID: campaign ? 'lockup' : 'plain', campaign, giveHref: (link: { href: string }) => link.href }));
 	const { render } = await import('svelte/server');
 	const comp = (await import('../../src/lib/site/CampaignAsk.svelte')).default;
 	const state = await import('../../src/lib/site/ask-state.svelte');
