@@ -1,13 +1,25 @@
 // The campaign site (LockUpPDFs.com): the same app built with VITE_SITE=lockup.
-// A second assets-only Worker, so the plain site's Worker is never touched.
+// A second Worker, so the plain site's Worker is never touched.
 // Deploy: `npm run deploy:lockup` (builds into build-lockup/, then deploys with this file).
+//
+// workers/lockup-visits.ts runs only for the HTML pages listed in run_worker_first; it
+// passes the assets response through unchanged and counts the page load server-side in
+// the self-hosted Umami. Every other request (JS, wasm, fonts, images, the service worker,
+// the /a /b /c forwards, unknown paths) is served by the assets layer without it.
 {
 	"name": "lockuppdfs",
+	"main": "./workers/lockup-visits.ts",
 	"compatibility_date": "2026-11-01",
 	"assets": {
 		"directory": "./build-lockup",
+		"binding": "ASSETS",
 		"html_handling": "auto-trailing-slash",
-		"not_found_handling": "404-page"
+		"not_found_handling": "404-page",
+		"run_worker_first": ["/", "/privacy", "/kit"]
+	},
+	"vars": {
+		"UMAMI_WEBSITE_ID": "db6c50b3-aad5-4f1a-ab5a-aa8f5262b520",
+		"UMAMI_URL": "https://stats.meseeks.xyz/api/press"
 	},
 	"workers_dev": false,
 	"routes": [{ "pattern": "lockuppdfs.com", "custom_domain": true }],
