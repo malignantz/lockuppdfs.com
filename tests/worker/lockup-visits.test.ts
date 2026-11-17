@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import worker, { isPageView, languageOf, pageview, referrerOf, send, TIMEOUT_MS, type Env } from '../../workers/lockup-visits';
+import worker from '../../workers/lockup-visits';
+import { isPageView, languageOf, pageview, referrerOf, send, TIMEOUT_MS, type Env } from '../../workers/visits';
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 const nav = { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document', 'user-agent': UA };
