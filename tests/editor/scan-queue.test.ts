@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ScanQueue, waitEstimate, type QueueConfig } from '../../src/lib/editor/scan-queue';
 
-const cfg: QueueConfig = { autoAll: 4, autoFirst: 2, ahead: 2, maxDocPages: 50, keep: 5 };
+const cfg: QueueConfig = { autoAll: 4, autoFirst: 2, ahead: 2, maxDocPages: 50, maxFileBytes: 1e9, keep: 5 };
 const keys = (n: number, src = 's') => Array.from({ length: n }, (_, i) => `${src}:${i}`);
 const res = (words = true) => ({ words, value: 'v', ms: 5000 });
 

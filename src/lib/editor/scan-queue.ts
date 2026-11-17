@@ -26,10 +26,15 @@ export interface QueueConfig {
 	autoFirst: number;
 	ahead: number;
 	maxDocPages: number;
+	/**
+	 * Files larger than this are not read at all (scan-reader.svelte.ts): the reading
+	 * worker holds its own copy of a file, and MuPDF another, about twice its size.
+	 */
+	maxFileBytes: number;
 	keep: number;
 }
 
-export const QUEUE_CONFIG: QueueConfig = { autoAll: 10, autoFirst: 3, ahead: 2, maxDocPages: 300, keep: 200 };
+export const QUEUE_CONFIG: QueueConfig = { autoAll: 10, autoFirst: 3, ahead: 2, maxDocPages: 300, maxFileBytes: 150 * 1024 * 1024, keep: 200 };
 
 export interface PageResult<T> {
 	/** The page's words were found (false: no words, or the reading failed). */
@@ -152,6 +157,12 @@ export class ScanQueue<T> {
 			this.batchKeys.clear();
 			this.batchDone = 0;
 		}
+	}
+
+	/** Every listed qualifying page of a file has been read. */
+	allRead(sourceId: string): boolean {
+		if (this.unlisted.has(sourceId)) return false;
+		return this.eligible.every((k) => sourceOfKey(k) !== sourceId || this.results.has(k));
 	}
 
 	/** True while pages are left to read (in flight or waiting). */

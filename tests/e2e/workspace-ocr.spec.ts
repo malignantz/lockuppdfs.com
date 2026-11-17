@@ -73,11 +73,11 @@ test('desktop: scanned pages become searchable; unreadable ones stay exactly as 
 	await expect(option).toBeVisible({ timeout: 30_000 });
 	await expect(option).not.toBeChecked();
 	await expect(dialog.getByText('Reads typed English on scanned pages so you can search and copy the text. The pages look the same.')).toBeVisible();
-	// Nothing of the OCR engine is loaded until the option is used.
-	expect(ocrFiles).toEqual([]);
+	// (Since 2026-11-16 a desktop reads scans in the background as soon as they are added, so
+	// the OCR engine may already be loaded, and the export reuses the pages read: it reads
+	// only the rest. editor-read-scans.spec.ts covers that.)
 	await option.click();
 	await exportButton(dialog).click();
-	await expect(page.getByText(/^Reading page \d+ of 4$/)).toBeVisible({ timeout: 60_000 });
 	const done = page.getByRole('dialog', { name: 'Your file is ready' });
 	await expect(done.getByText('Checked: 8 pages, opens cleanly.')).toBeVisible({ timeout: 150_000 });
 	await expect(done.getByText('2 pages made searchable. 2 pages were left as they were because the text could not be read well enough.')).toBeVisible();
@@ -126,7 +126,8 @@ test('desktop: cancel while reading leaves nothing made, and the next export wor
 	await openMore(dialog);
 	await dialog.getByRole('switch', { name: OPTION }).click();
 	await exportButton(dialog).click();
-	await expect(page.getByText(/^Reading page \d+ of 4$/)).toBeVisible({ timeout: 60_000 });
+	// The pages not yet read in the background (they are read from the start of the file).
+	await expect(page.getByText(/^Reading page \d+ of [1-4]$/)).toBeVisible({ timeout: 60_000 });
 	await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 	const form = page.getByRole('dialog', { name: 'Export PDF' });
 	await expect(form.getByText('Export cancelled. Nothing was saved.')).toBeVisible({ timeout: 15_000 });

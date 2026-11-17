@@ -3,14 +3,14 @@
  * and fake timers: what it reads, in what order, when it waits, how it stops.
  */
 import { describe, expect, it } from 'vitest';
-import { ScanReader, DONE_NOTICE } from '../../src/lib/editor/scan-reader.svelte';
+import { ScanReader, DONE_FIRST_NOTICE, DONE_NOTICE } from '../../src/lib/editor/scan-reader.svelte';
 import type { EngineClient } from '../../src/lib/engine/client';
 import type { PageRef, ScanPageRead, Source } from '../../src/lib/core/types';
 
-const cfg = { autoAll: 4, autoFirst: 2, ahead: 1, maxDocPages: 50, keep: 50 };
+const cfg = { autoAll: 4, autoFirst: 2, ahead: 1, maxDocPages: 50, maxFileBytes: 1000, keep: 50 };
 
-function src(id: string, n: number): Source {
-	return { id, kind: 'pdf', name: `${id}.pdf`, bytes: new Uint8Array(1), pages: Array.from({ length: n }, () => ({ width: 612, height: 792 })) } as unknown as Source;
+function src(id: string, n: number, bytes = 1): Source {
+	return { id, kind: 'pdf', name: `${id}.pdf`, bytes: new Uint8Array(bytes), pages: Array.from({ length: n }, () => ({ width: 612, height: 792 })) } as unknown as Source;
 }
 const refs = (s: Source, idx = s.pages.map((_, i) => i)): PageRef[] => idx.map((i) => ({ id: `${s.id}-${i}`, sourceId: s.id, pageIndex: i, rotation: 0, stamps: [] }));
 
@@ -179,6 +179,8 @@ describe('ScanReader', () => {
 		await h.answer(1);
 		await h.answer(1);
 		expect(h.calls).toEqual([]);
+		// Only the first pages were read: the notice says so.
+		expect(h.notes).toEqual([DONE_FIRST_NOTICE]);
 		h.reader.view('a', 4);
 		await h.advance();
 		expect(await h.answer(1)).toBe('a:4');
@@ -212,6 +214,17 @@ describe('ScanReader', () => {
 		h.reader.view('big', 120);
 		await h.advance();
 		expect(h.calls.map((c) => c.key)).toEqual(['big:120']);
+	});
+
+	it('a file too large to copy into the reading worker is not read at all', async () => {
+		const h = harness({ huge: [0, 1] });
+		const huge = src('huge', 2, 5000);
+		h.reader.sync([huge], refs(huge));
+		h.reader.view('huge', 0);
+		await h.advance(1000);
+		expect(h.calls).toEqual([]);
+		expect(h.engines.length).toBe(0);
+		expect(h.reader.page('huge', 0).state).toBe('none');
 	});
 
 	it('does nothing where it is not enabled (phones)', async () => {

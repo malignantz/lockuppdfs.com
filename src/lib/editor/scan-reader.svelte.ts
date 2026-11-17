@@ -19,6 +19,8 @@ import { toasts } from '../ui/toasts.svelte';
 import { BAR_AFTER_MS, PRIOR_PAGE_MS, QUEUE_CONFIG, ScanQueue, sourceOfKey, waitEstimate, type PageState, type QueueConfig } from './scan-queue';
 
 export const DONE_NOTICE = 'Text in this scan can now be selected.';
+/** Said instead when only the first pages of a long scan were read (the others are read as they are opened). */
+export const DONE_FIRST_NOTICE = 'Text on the first pages of this scan can now be selected.';
 
 /** Pause between two pages, so the reader never runs back to back with the page. */
 const YIELD_MS = 300;
@@ -115,6 +117,9 @@ export class ScanReader {
 	/** The page the editor shows, or null when it closes. */
 	view(sourceId: SourceId | null, pageIndex = 0): void {
 		if (!this.#enabled()) return;
+		// A file too large to read: the editor shows it as before.
+		const s = sourceId ? this.#sources.get(sourceId) : undefined;
+		if (sourceId && (!s || !this.#readable(s))) sourceId = null;
 		this.#queue.view(sourceId ? `${sourceId}:${pageIndex}` : null);
 		this.#changed();
 	}
@@ -162,9 +167,14 @@ export class ScanReader {
 	/** Lists the qualifying pages of every open file not listed yet (long files are not listed). */
 	#listMissing() {
 		for (const s of this.#sources.values()) {
-			if (s.kind !== 'pdf' || this.#listing.has(s.id) || s.pages.length > this.#cfg.maxDocPages) continue;
+			if (!this.#readable(s) || this.#listing.has(s.id) || s.pages.length > this.#cfg.maxDocPages) continue;
 			this.#list(s);
 		}
+	}
+
+	/** A PDF small enough to copy into the reading worker. */
+	#readable(s: Source): boolean {
+		return s.kind === 'pdf' && (s.bytes?.byteLength ?? 0) <= this.#cfg.maxFileBytes;
 	}
 
 	#list(s: Source) {
@@ -200,7 +210,7 @@ export class ScanReader {
 		const sets = new Map<SourceId, Set<number>>();
 		for (const [id, l] of this.#listing) if (l !== 'pending') sets.set(id, new Set(l));
 		const unlisted = new Set<SourceId>();
-		for (const s of this.#sources.values()) if (s.kind === 'pdf' && s.pages.length > this.#cfg.maxDocPages) unlisted.add(s.id);
+		for (const s of this.#sources.values()) if (this.#readable(s) && s.pages.length > this.#cfg.maxDocPages) unlisted.add(s.id);
 		for (const p of this.#pages) {
 			const k = `${p.sourceId}:${p.pageIndex}`;
 			// Redaction boxes: the text under them is not read (the export does not read such pages either).
@@ -273,7 +283,7 @@ export class ScanReader {
 		this.#gotWords.clear();
 		if (!fresh.length) return;
 		for (const id of fresh) this.#announced.add(id);
-		this.#notify(DONE_NOTICE);
+		this.#notify(fresh.every((id) => this.#queue.allRead(id)) ? DONE_NOTICE : DONE_FIRST_NOTICE);
 	}
 
 	#scheduleIdle() {
