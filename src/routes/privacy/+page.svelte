@@ -34,8 +34,8 @@
 			</li>
 			<li>
 				<strong>Nothing comes from elsewhere.</strong> The PDF engines (qpdf, PDF.js, pdf-lib, MuPDF), fonts and
-				icons are part of the site itself, and so is the text reader (Tesseract) that makes scanned pages
-				searchable, which runs on your computer like everything else. There is no CDN, no web font service and no
+				icons are part of the site itself, and so is the text reader (Tesseract) that reads scanned pages
+				so their text can be selected and made searchable, which runs on your computer like everything else. There is no CDN, no web font service and no
 				third-party script.
 			</li>
 			{#if campaign}
