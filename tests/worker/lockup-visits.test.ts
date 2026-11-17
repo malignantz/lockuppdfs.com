@@ -76,6 +76,16 @@ describe('the pageview payload', () => {
 		});
 	});
 
+	it('keeps the campaign tags of the link and nothing else from the query', () => {
+		const url = (path: string) => pageview(req(path, nav), 'id').payload.url;
+		expect(url('/?utm_source=Facebook&utm_medium=social&utm_campaign=launch&utm_content=post-1&fbclid=abc&secret=1')).toBe(
+			'/?utm_source=facebook&utm_medium=social&utm_campaign=launch&utm_content=post-1'
+		);
+		expect(url('/kit?fbclid=abc')).toBe('/kit');
+		expect(url('/?utm_source=a%20b&utm_campaign=' + 'x'.repeat(41))).toBe('/');
+		expect(url('/?utm_term=shoes&utm_source=linkedin')).toBe('/?utm_source=linkedin');
+	});
+
 	it('leaves out what the request does not have', () => {
 		expect(pageview(req('/', { 'sec-fetch-mode': 'navigate' }), 'id').payload).toEqual({
 			website: 'id',

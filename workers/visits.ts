@@ -8,8 +8,8 @@
 // counter can never slow or break a page. Nothing is added to the page: the browser
 // still talks only to this origin.
 //
-// What is sent: the page path (no query string), the referring page (origin + path, no
-// query), the first language tag, the visitor's User-Agent and IP. Umami works out the
+// What is sent: the page path (no query string, except the campaign tags below), the
+// referring page (origin + path, no query), the first language tag, the visitor's User-Agent and IP. Umami works out the
 // browser, OS, device and location from those and keeps them; it does not keep the IP.
 
 export interface Env {
@@ -76,9 +76,23 @@ export function languageOf(value: string | null): string | undefined {
 	return tag && tag !== '*' && /^[A-Za-z0-9-]{1,35}$/.test(tag) ? tag : undefined;
 }
 
+/** The link tags that are kept, so that each place the link was posted can be told apart. */
+export const TAGS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'];
+
+/** The page path plus the campaign tags of the link, if any. Every other query parameter is dropped. */
+export function pathOf(url: URL): string {
+	const kept = new URLSearchParams();
+	for (const tag of TAGS) {
+		const value = url.searchParams.get(tag);
+		if (value && /^[A-Za-z0-9._-]{1,40}$/.test(value)) kept.set(tag, value.toLowerCase());
+	}
+	const query = kept.toString();
+	return query ? `${url.pathname}?${query}` : url.pathname;
+}
+
 export function pageview(request: Request, website: string): Pageview {
 	const h = request.headers;
-	const payload: Pageview['payload'] = { website, hostname: HOSTNAME, url: new URL(request.url).pathname, title: '' };
+	const payload: Pageview['payload'] = { website, hostname: HOSTNAME, url: pathOf(new URL(request.url)), title: '' };
 	const referrer = referrerOf(h.get('referer'));
 	if (referrer) payload.referrer = referrer;
 	const language = languageOf(h.get('accept-language'));

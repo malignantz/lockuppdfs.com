@@ -1,0 +1,8 @@
+{
+	"name": "lockuppdfs-b",
+	"compatibility_date": "2026-11-01",
+	"assets": { "directory": "./build-lockup", "html_handling": "auto-trailing-slash", "not_found_handling": "404-page" },
+	"workers_dev": false,
+	"routes": [{ "pattern": "b.lockuppdfs.com", "custom_domain": true }],
+	"preview_urls": false
+}
