@@ -30,9 +30,26 @@
 
 	let input: HTMLInputElement | undefined = $state();
 
+	// The top tools as chips under the button, with the icon of the matching list entry.
+	const PICTURES = 'image/png,image/jpeg,image/webp,image/gif,image/heic,image/*';
+	const PDFS = 'application/pdf,.pdf';
+	const chips = $derived(
+		splash.chips.map((c) => ({ ...c, icon: features.find((f) => f.title === c.tool)?.icon ?? ('file' as IconName) }))
+	);
+
+	/** Opens the picker; a chip narrows it to the files its tool starts from. */
+	function pick(only?: string) {
+		if (!input) return;
+		input.accept = only ?? accept;
+		input.click();
+	}
+
 	function onchange() {
 		const files = [...(input?.files ?? [])];
-		if (input) input.value = '';
+		if (input) {
+			input.value = '';
+			input.accept = accept;
+		}
 		if (files.length) onfiles(files);
 	}
 </script>
@@ -45,12 +62,12 @@
 		<div class="copy">
 			<h1 id="empty-title" class="headline">{dragging ? splash.dropping : splash.headline}</h1>
 			<p class="tagline">{splash.tagline}</p>
-			<p class="sub">{splash.sub}</p>
+			<p class="statement">{splash.statement}</p>
 			<div class="cta">
-				<button type="button" class="choose" onclick={() => input?.click()}>
-					<Icon name="add" size={24} />Choose files
+				<button type="button" class="choose" onclick={() => pick()}>
+					<Icon name="add" size={26} />Choose files
 				</button>
-				<span class="drop-hint">or drop them anywhere on this page</span>
+				<span class="drop-hint">{splash.drop}</span>
 				<input
 					bind:this={input}
 					class="visually-hidden"
@@ -62,17 +79,27 @@
 					{onchange}
 				/>
 			</div>
+			<ul class="chips" aria-label="Popular tools">
+				{#each chips as c (c.label)}
+					<li>
+						<button type="button" class="tool" title={c.tool} onclick={() => pick(c.pictures ? PICTURES : PDFS)}
+							><Icon name={c.icon} size={18} />{c.label}</button
+						>
+					</li>
+				{/each}
+			</ul>
 			{#if newWork}<p class="new-work">{newWork}</p>{/if}
 			<p class="proof-line"><Icon name="shield-check" size={16} />{splash.proof}</p>
 		</div>
 	</div>
 
-	<aside class="give" aria-label={splash.give.label}>
+	<aside class="give" aria-labelledby="give-heading">
 		<div class="stub" aria-hidden="true">
 			<span class="fee-label">{splash.fee.label}</span>
 			<span class="fee-amount">{splash.fee.amount}</span>
 		</div>
 		<div class="give-body">
+			<h2 id="give-heading" class="give-heading">{splash.give.heading}</h2>
 			<p class="give-lead">{splash.give.lead}</p>
 			<ul class="give-links">
 				{#each campaign.ask.links as link (link.href)}
@@ -118,7 +145,7 @@
 	.poster {
 		position: relative;
 		min-height: calc(100dvh - var(--bar-h) - var(--safe-top));
-		padding: var(--s-5) calc(var(--s-4) + var(--safe-right)) calc(var(--s-7) + var(--safe-bottom)) calc(var(--s-4) + var(--safe-left));
+		padding: var(--s-4) calc(var(--s-4) + var(--safe-right)) calc(var(--s-7) + var(--safe-bottom)) calc(var(--s-4) + var(--safe-left));
 		background:
 			radial-gradient(60rem 36rem at 50% -8rem, rgb(255 107 26 / 0.13), transparent 70%),
 			repeating-linear-gradient(90deg, transparent 0 46px, rgb(244 239 230 / 0.028) 46px 52px),
@@ -154,17 +181,24 @@
 	}
 
 	.art :global(.lk-icon) {
-		width: 112px;
-		height: 112px;
+		width: 84px;
+		height: 84px;
 		filter: drop-shadow(0 10px 30px rgb(255 107 26 / 0.22));
+	}
+
+	.copy {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
 	}
 
 	.headline {
 		margin-top: var(--s-2);
 		font-family: var(--font-display);
 		font-weight: 400;
-		font-size: clamp(4.5rem, 25vw, 9.5rem);
-		line-height: 0.92;
+		font-size: clamp(3.75rem, 21vw, 9.5rem);
+		line-height: 0.9;
 		letter-spacing: 0.005em;
 		color: var(--lk-ink);
 		text-wrap: balance;
@@ -172,9 +206,9 @@
 	}
 
 	.tagline {
-		margin-top: var(--s-5);
+		margin-top: var(--s-3);
 		font-family: var(--font-display);
-		font-size: clamp(1.5rem, 6.4vw, 2.25rem);
+		font-size: clamp(1.375rem, 6.2vw, 2.25rem);
 		line-height: 1.05;
 		letter-spacing: 0.01em;
 		color: var(--lk-orange);
@@ -182,39 +216,50 @@
 		text-wrap: balance;
 	}
 
-	.sub {
-		margin-top: var(--s-2);
+	/* What the site is: plain, large and bright, right above the button. */
+	.statement {
+		margin-top: var(--s-4);
+		max-width: 22ch;
+		font-size: clamp(1.1875rem, 5.6vw, 1.75rem);
+		line-height: 1.2;
+		font-weight: 800;
+		letter-spacing: -0.005em;
+		color: var(--lk-ink);
 		text-wrap: balance;
-		font-size: 1.0625rem;
-		line-height: 1.4;
-		color: var(--lk-soft);
 	}
 
+	/* The one action. Its colour is used nowhere else on the page. */
 	.cta {
-		margin-top: var(--s-5);
+		--cta: #ffd21f;
+		--cta-hi: #ffe066;
+		--cta-ink: #0d0d0c;
+		--cta-edge: #b38600;
+		margin-top: var(--s-4);
+		width: 100%;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		justify-content: center;
-		flex-wrap: wrap;
-		gap: var(--s-3) var(--s-4);
+		gap: var(--s-2);
 	}
 
 	.choose {
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 		gap: var(--s-2);
-		min-height: 60px;
+		width: 100%;
+		max-width: 24rem;
+		min-height: 64px;
 		padding: 0 var(--s-6) 0 var(--s-5);
 		border-radius: 4px;
-		background: var(--lk-orange);
-		color: var(--lk-black);
-		font-size: 1.1875rem;
-		font-weight: 800;
-		letter-spacing: 0.01em;
+		background: var(--cta);
+		color: var(--cta-ink);
+		font-size: 1.375rem;
+		font-weight: 850;
+		letter-spacing: 0.005em;
 		box-shadow:
-			0 0 0 1px rgb(0 0 0 / 0.2) inset,
-			0 6px 0 #a83f06,
-			0 12px 28px rgb(255 107 26 / 0.25);
+			0 0 0 2px var(--cta-ink) inset,
+			0 6px 0 var(--cta-edge);
 		transition:
 			transform var(--dur-fast) var(--ease),
 			box-shadow var(--dur-fast) var(--ease),
@@ -222,29 +267,102 @@
 	}
 
 	.choose:hover {
-		background: var(--lk-orange-hi);
+		background: var(--cta-hi);
 	}
 
 	.choose:active {
 		transform: translateY(4px);
 		box-shadow:
-			0 0 0 1px rgb(0 0 0 / 0.2) inset,
-			0 2px 0 #a83f06;
+			0 0 0 2px var(--cta-ink) inset,
+			0 2px 0 var(--cta-edge);
+	}
+
+	.choose:focus-visible {
+		outline: 4px solid var(--lk-ink);
+		outline-offset: 5px;
 	}
 
 	.choose :global(.icon) {
-		stroke-width: 2.6;
+		stroke-width: 2.8;
 	}
 
+	/* Only where a pointer can drop files: the button sits in a drawn drop area. */
 	.drop-hint {
-		font-size: var(--text-caption);
-		color: var(--lk-soft);
+		display: none;
 	}
 
-	@media (hover: none) and (pointer: coarse) {
-		.drop-hint {
-			display: none;
+	@media (hover: hover) and (pointer: fine) {
+		.cta {
+			padding: var(--s-4);
+			border: 2px dashed color-mix(in srgb, var(--lk-ink) 45%, transparent);
+			border-radius: 8px;
+			max-width: 28rem;
 		}
+
+		.dragging .cta {
+			border-color: var(--cta);
+		}
+
+		.drop-hint {
+			display: inline;
+			font-size: var(--text-control);
+			font-weight: 650;
+			color: var(--lk-ink);
+		}
+	}
+
+	@media (hover: hover) and (pointer: fine) and (min-width: 600px) {
+		.cta {
+			width: auto;
+			max-width: none;
+			align-self: center;
+			padding: var(--s-4) var(--s-5);
+			flex-direction: row;
+			gap: var(--s-5);
+		}
+
+		.choose {
+			width: auto;
+		}
+	}
+
+	/* The top tools, under the button. */
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: var(--s-2);
+		margin: var(--s-4) 0 0;
+		padding: 0;
+		list-style: none;
+		max-width: 24rem;
+	}
+
+	.tool {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 40px;
+		padding: 0 var(--s-3) 0 10px;
+		border: 1.5px solid #5a554d;
+		border-radius: 999px;
+		background: var(--lk-raise);
+		color: var(--lk-ink);
+		font-size: 0.9375rem;
+		font-weight: 700;
+		white-space: nowrap;
+		transition:
+			border-color var(--dur-fast) var(--ease),
+			background-color var(--dur-fast) var(--ease);
+	}
+
+	.tool:hover {
+		border-color: var(--lk-orange);
+		background: #221f1b;
+	}
+
+	.tool :global(.icon) {
+		color: var(--lk-orange);
 	}
 
 	.new-work {
@@ -254,7 +372,7 @@
 	}
 
 	.proof-line {
-		margin-top: var(--s-4);
+		margin-top: var(--s-3);
 		text-wrap: balance;
 		font-size: var(--text-caption);
 		color: var(--lk-soft);
@@ -274,7 +392,7 @@
 		position: relative;
 		display: grid;
 		max-width: 60rem;
-		margin: var(--s-6) auto 0;
+		margin: var(--s-5) auto 0;
 		background: var(--lk-paper);
 		color: var(--lk-paper-ink);
 		border-radius: 6px;
@@ -317,6 +435,16 @@
 		display: grid;
 		gap: var(--s-4);
 		padding: var(--s-5);
+	}
+
+	.give-heading {
+		font-family: var(--font-display);
+		font-weight: 400;
+		font-size: clamp(1.625rem, 7vw, 2.25rem);
+		line-height: 1;
+		text-transform: uppercase;
+		letter-spacing: 0.01em;
+		text-wrap: balance;
 	}
 
 	.give-lead {
@@ -518,6 +646,20 @@
 
 		.copy {
 			grid-area: copy;
+			align-items: flex-start;
+		}
+
+		.statement {
+			max-width: none;
+		}
+
+		.cta {
+			align-self: flex-start;
+		}
+
+		.chips {
+			justify-content: flex-start;
+			max-width: none;
 		}
 
 		.art {
@@ -525,17 +667,17 @@
 		}
 
 		.art :global(.lk-icon) {
-			width: 340px;
-			height: 340px;
+			width: 300px;
+			height: 300px;
+		}
+
+		.tagline {
+			margin-top: var(--s-4);
 		}
 
 		.headline {
 			margin-top: 0;
-			font-size: clamp(6rem, 12vw, 10.5rem);
-		}
-
-		.cta {
-			justify-content: flex-start;
+			font-size: clamp(5.5rem, 10vw, 9rem);
 		}
 
 		.give {
@@ -568,13 +710,14 @@
 			padding: var(--s-5) var(--s-6);
 		}
 
+		.give-heading,
 		.give-lead {
 			grid-column: 1;
 		}
 
 		.give-links {
 			grid-column: 2;
-			grid-row: 1 / span 2;
+			grid-row: 1 / span 3;
 			flex-direction: column;
 			width: 13rem;
 		}
@@ -585,18 +728,6 @@
 
 		.give-note {
 			grid-column: 1;
-		}
-	}
-
-	@media (max-width: 599px) {
-		.cta {
-			width: 100%;
-		}
-
-		.choose {
-			width: 100%;
-			max-width: 22rem;
-			justify-content: center;
 		}
 	}
 
@@ -623,6 +754,16 @@
 
 		.choose {
 			padding: 0 var(--s-5) 0 var(--s-4);
+		}
+
+		.chips {
+			gap: 6px;
+		}
+
+		.tool {
+			gap: 4px;
+			padding: 0 10px 0 8px;
+			font-size: 0.8125rem;
 		}
 	}
 </style>

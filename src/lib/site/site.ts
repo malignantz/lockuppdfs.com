@@ -24,13 +24,21 @@ export interface Campaign {
 		/** The h1 while files are dragged over the page. */
 		dropping: string;
 		tagline: string;
-		sub: string;
-		/** One small reassurance under the button. */
+		/** What the site is, said plainly right above the button. */
+		statement: string;
+		/** The drop area's line, shown only where a pointer can drop files. */
+		drop: string;
+		/**
+		 * The most used tools, as chips under the button. tool is the title of the matching
+		 * entry in the "What you can do" list; pictures chips open the picker for images.
+		 */
+		chips: { label: string; tool: string; pictures?: boolean }[];
+		/** One small reassurance under the chips. */
 		proof: string;
 		/** The ticket stub on the giving band: a label and this site's own price. */
 		fee: { label: string; amount: string };
 		/** The giving band; its links are ask.links and its small print is ask.note. */
-		give: { label: string; lead: string };
+		give: { heading: string; lead: string };
 	};
 	// Shown once on the export result screen, only after the file is saved.
 	ask: { lead: string; links: CampaignLink[]; note: string };
@@ -47,16 +55,23 @@ const lockup: Campaign = {
 		headline: 'LOCK UP PDFs.',
 		dropping: 'DROP THEM IN.',
 		tagline: 'PDF files belong behind bars.',
-		sub: 'Free PDF tools. Nothing to pay at the download.',
-		proof: 'No account. Your files never leave this device.',
+		statement: 'Free PDF tools. Combine, sign, shrink, convert.',
+		drop: 'or drop files here',
+		chips: [
+			{ label: 'Combine', tool: 'Combine files' },
+			{ label: 'Fill & sign', tool: 'Fill in and sign' },
+			{ label: 'Make smaller', tool: 'Make it smaller' },
+			{ label: 'Pictures to PDF', tool: 'Pictures to PDF', pictures: true }
+		],
+		proof: 'No account. Files never leave your device.',
 		fee: { label: 'Download fee', amount: '$0.00' },
 		give: {
-			label: 'Give what you saved',
-			lead: 'Other sites charge you for the file. This one is free. Give what you saved to the people who protect children from the other kind of PDF file.'
+			heading: 'Donate to charity, not PDF software companies.',
+			lead: 'Other sites charge you for the file. This one never will. Give what you would have paid to the people who protect children from the other kind.'
 		}
 	},
 	ask: {
-		lead: 'That was free. If another site would have charged you for it, consider giving that money to child protection instead.',
+		lead: 'That was free. Donate to charity, not PDF software companies: give what you would have paid to child protection instead.',
 		links: [
 			{ label: 'Give to NCMEC', href: 'https://give.missingkids.org/' },
 			{ label: 'Give to Thorn', href: 'https://www.thorn.org/donate/' }
