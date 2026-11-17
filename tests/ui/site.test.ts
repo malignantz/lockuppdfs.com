@@ -21,7 +21,8 @@ describe('site variant', () => {
 		expect(campaign?.title).toContain('LockUpPDFs');
 		expect(campaign?.splash.headline).toBe('Lock up PDFs.');
 		expect(campaign?.splash.tagline).toBe('Yes, both kinds.');
-		expect(campaign?.splash.give.heading).not.toBe('');
+		expect(campaign?.splash.give.heading).toBe('Donate to charity, not PDF software companies.');
+		expect(campaign?.ask.lead).toContain('Donate to charity, not PDF software companies');
 	});
 
 	it('gives only plain https links to the charities, with the not-connected note', async () => {

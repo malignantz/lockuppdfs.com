@@ -24,6 +24,9 @@ export interface Campaign {
 		headline: string;
 		tagline: string;
 		body: string;
+		// Under the Choose files button: drop is said only where dropping is possible
+		// (a mouse and a wide screen); reassure is said everywhere.
+		cta: { drop: string; reassure: string };
 		give: { heading: string; lead: string };
 	};
 	// Shown once on the export result screen, only after the file is saved.
@@ -41,13 +44,17 @@ const lockup: Campaign = {
 		headline: 'Lock up PDFs.',
 		tagline: 'Yes, both kinds.',
 		body: 'This site fixes the document kind for free: combine, sign, shrink, no charge at the download. The other kind of PDF file belongs in prison.',
+		cta: {
+			drop: 'or drop files here',
+			reassure: 'Free. No account. Files never leave your device.'
+		},
 		give: {
-			heading: 'Saved a few dollars?',
-			lead: 'Other sites charge you for the file. This one never will. Give what you saved to the people who protect children from the other kind.'
+			heading: 'Donate to charity, not PDF software companies.',
+			lead: 'Other sites charge you for the file. This one never will. Give what you would have paid to the people who protect children from the other kind.'
 		}
 	},
 	ask: {
-		lead: 'That was free. If another site would have charged you for it, consider giving that money to child protection instead.',
+		lead: 'That was free. Donate to charity, not PDF software companies: give what you would have paid to child protection instead.',
 		links: [
 			{ label: 'Give to NCMEC', href: 'https://give.missingkids.org/' },
 			{ label: 'Give to Thorn', href: 'https://www.thorn.org/donate/' }

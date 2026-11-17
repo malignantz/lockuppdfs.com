@@ -15,8 +15,18 @@ test('on a phone the first screen holds the pun, Choose files and the start of t
 	await expect(page.getByRole('heading', { level: 1, name: 'Lock up PDFs.' })).toBeInViewport({ ratio: 1 });
 	await expect(page.getByText('Yes, both kinds.')).toBeInViewport({ ratio: 1 });
 	await expect(page.getByText('The other kind of PDF file belongs in prison.')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Choose files' })).toBeInViewport({ ratio: 1 });
-	await expect(page.getByRole('heading', { name: 'Saved a few dollars?' })).toBeInViewport({ ratio: 1 });
+	const choose = page.getByRole('button', { name: 'Choose files' });
+	await expect(choose).toBeInViewport({ ratio: 1 });
+	await expect(page.getByRole('heading', { name: 'Donate to charity, not PDF software companies.' })).toBeInViewport({ ratio: 1 });
+	// The main action: the full width of the column, tall, above the explanation.
+	const btn = (await choose.boundingBox())!;
+	expect(btn.width).toBeGreaterThanOrEqual(390 - 2 * 24);
+	expect(btn.height).toBeGreaterThanOrEqual(60);
+	const body = (await page.getByText('The other kind of PDF file belongs in prison.').boundingBox())!;
+	expect(btn.y).toBeLessThan(body.y);
+	// No drop hint where nothing can be dropped; the reassurance line instead.
+	await expect(page.getByText('or drop files here')).toBeHidden();
+	await expect(page.getByText('Free. No account. Files never leave your device.')).toBeVisible();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 	// The typeface is this site's own file.
 	await page.evaluate(() => document.fonts.ready);
@@ -28,7 +38,7 @@ test('on a phone the first screen holds the pun, Choose files and the start of t
 
 test('the giving card links straight to each charity, from site.ts, in a new tab', async ({ page }) => {
 	await page.goto('/');
-	const card = page.getByRole('complementary', { name: 'Saved a few dollars?' });
+	const card = page.getByRole('complementary', { name: 'Donate to charity, not PDF software companies.' });
 	await expect(card).toBeVisible();
 	const lead = (await card.locator('.give-lead').innerText()).trim();
 	const note = (await card.locator('.give-note').innerText()).trim();
@@ -61,6 +71,17 @@ test('the tool list works below the fold, and Choose files opens the picker', as
 	expect(await list.locator('li').count()).toBeGreaterThan(before);
 	const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Choose files' }).click()]);
 	expect(chooser.isMultiple()).toBe(true);
+});
+
+test('on a desktop the button sits in a drawn drop area that says so', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await page.goto('/');
+	const choose = page.getByRole('button', { name: 'Choose files' });
+	await expect(choose).toBeInViewport({ ratio: 1 });
+	await expect(page.getByText('or drop files here')).toBeVisible();
+	const zone = page.locator('.cta');
+	expect(await zone.evaluate((el) => getComputedStyle(el).borderStyle)).toBe('dashed');
+	expect((await choose.boundingBox())!.height).toBeGreaterThanOrEqual(60);
 });
 
 test('at 320 px nothing scrolls sideways', async ({ page }) => {

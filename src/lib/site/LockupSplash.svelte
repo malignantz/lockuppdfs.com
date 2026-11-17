@@ -48,14 +48,18 @@
 			<p class="eyebrow"><span class="dot" aria-hidden="true"></span>Free PDF tools · runs on your device</p>
 			<h1 id="empty-title" class="headline">{splash.headline}</h1>
 			<p class="tagline">{splash.tagline}</p>
-			<p class="body">{splash.body}</p>
 
+			<!-- The main action, straight under the pun. On a desktop it sits in a drawn drop
+			     area; the whole page still takes a drop (EmptyDesk owns that). -->
 			<div class="cta">
 				<Button variant="primary" size="lg" icon="add" class="lu-choose" onclick={onchoose}>Choose files</Button>
-				<span class="drop-hint">or drop them anywhere on this page</span>
+				<span class="drop-hint">{splash.cta.drop}</span>
+				<span class="reassure">{splash.cta.reassure}</span>
 				{#if newWork}<p class="new-work">{newWork}</p>{/if}
 				{@render picker()}
 			</div>
+
+			<p class="body">{splash.body}</p>
 		</div>
 
 		<div class="art" aria-hidden="true">
@@ -181,29 +185,35 @@
 		color: var(--ink-soft);
 	}
 
+	/* The main action. On a phone: the full width of the column, tall, right under the pun. */
 	.cta {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--s-3) var(--s-4);
+		display: grid;
+		justify-items: stretch;
+		gap: 10px;
 		margin-top: var(--s-5);
 	}
 
 	.cta :global(.lu-choose) {
-		min-height: 52px;
-		padding: 0 var(--s-5) 0 var(--s-4);
-		border-radius: 14px;
-		font-size: 1.0625rem;
+		width: 100%;
+		min-height: 62px;
+		padding: 0 var(--s-5);
+		border-radius: 16px;
+		font-size: 1.1875rem;
 		font-weight: 700;
-		letter-spacing: -0.01em;
+		letter-spacing: -0.015em;
 		box-shadow:
 			inset 0 1px 0 rgb(255 255 255 / 0.22),
 			0 1px 2px rgb(11 13 18 / 0.18),
-			0 8px 20px color-mix(in srgb, var(--accent) 32%, transparent);
+			0 10px 24px color-mix(in srgb, var(--accent) 34%, transparent);
 		transition:
 			transform var(--dur-fast) var(--ease),
 			box-shadow var(--dur) var(--ease),
 			background-color var(--dur-fast) var(--ease);
+	}
+
+	.cta :global(.lu-choose .icon) {
+		width: 24px;
+		height: 24px;
 	}
 
 	.cta :global(.lu-choose:hover) {
@@ -215,23 +225,63 @@
 	}
 
 	.cta :global(.lu-choose:focus-visible) {
-		outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+		outline: 3px solid var(--accent);
 		outline-offset: 3px;
 	}
 
-	.drop-hint,
+	.drop-hint {
+		display: none;
+	}
+
+	.reassure,
 	.new-work {
 		font-size: var(--text-caption);
+		line-height: 1.4;
+		text-align: center;
+		text-wrap: balance;
 		color: var(--ink-soft);
 	}
 
-	.new-work {
-		flex-basis: 100%;
+	/* Where a file can be dragged in (a mouse, a wide screen), the action sits in a drawn
+	   drop area so the hero reads as "put your file here". The whole page still takes the drop. */
+	@media (min-width: 600px) and (hover: hover) and (pointer: fine) {
+		.cta {
+			justify-items: center;
+			gap: var(--s-2);
+			max-width: 31rem;
+			padding: var(--s-5) var(--s-5) 20px;
+			border: 2px dashed color-mix(in srgb, var(--accent) 42%, var(--line));
+			border-radius: 24px;
+			background: color-mix(in srgb, var(--lu-tint) 70%, var(--surface));
+			transition:
+				border-color var(--dur) var(--ease),
+				background-color var(--dur) var(--ease);
+		}
+
+		.dragging .cta {
+			border-color: var(--accent);
+			background: var(--lu-tint);
+		}
+
+		.cta :global(.lu-choose) {
+			width: min(100%, 20rem);
+			min-height: 64px;
+			font-size: 1.25rem;
+		}
+
+		.drop-hint {
+			display: block;
+			font-size: var(--text-base);
+			font-weight: 700;
+			color: var(--ink);
+		}
 	}
 
-	@media (hover: none) and (pointer: coarse), (max-width: 599px) {
-		.drop-hint {
-			display: none;
+	@media (prefers-reduced-motion: reduce) {
+		.cta :global(.lu-choose),
+		.cta :global(.lu-choose:hover) {
+			transform: none;
+			transition: none;
 		}
 	}
 
@@ -256,6 +306,7 @@
 		font-size: 1.375rem;
 		line-height: 1.2;
 		letter-spacing: -0.025em;
+		text-wrap: balance;
 		color: var(--ink);
 	}
 
@@ -530,6 +581,10 @@
 		}
 
 		.cta {
+			margin-top: var(--s-6);
+		}
+
+		.body {
 			margin-top: var(--s-6);
 		}
 
