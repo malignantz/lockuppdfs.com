@@ -295,6 +295,13 @@ export interface ExportOptions {
 	/** Make scanned pages searchable: an invisible OCR text layer (see OcrReport). Desktop only in the app. */
 	ocr?: boolean;
 	/**
+	 * Added 2026-11-16. With `ocr`: pages the editor already read in the background
+	 * (Engine.readScanPage `reuse`), used instead of reading those pages again. Everything
+	 * after reading (writing the layer, its checks, the final check) is unchanged; a page
+	 * missing here, or whose reading had failed, is read as usual. Never saved.
+	 */
+	ocrKnown?: OcrKnownPage[];
+	/**
 	 * Print-size cap (2026-11-13), only with `compress`: photos and scans that hold more
 	 * pixels than a 300 ppi print of the size they are drawn at are brought down to
 	 * 300 ppi (JPEG). Flat-colour images, masks, 1-bit, CMYK and anything the engine
@@ -552,6 +559,29 @@ export interface EngineErrorShape {
 	checks?: VerifyCheck[];
 }
 
+/**
+ * Added 2026-11-16. One scanned page read in the background for the editor
+ * (Engine.readScanPage), the way "Make scanned pages searchable" reads it.
+ */
+export interface ScanPageRead {
+	/**
+	 * The page's words in Engine.pageText's model (the words the export's layer would
+	 * give the page); no words when the text could not be read well enough.
+	 */
+	text: PageText;
+	/** The reading itself, opaque, for ExportOptions.ocrKnown. */
+	reuse: OcrKnownPage;
+	/** Time taken, milliseconds (render, orientation, reading, words). */
+	ms: number;
+}
+
+/** Added 2026-11-16. A page's OCR outcome kept for reuse by an export (opaque outside the engine). */
+export interface OcrKnownPage {
+	sourceId: SourceId;
+	pageIndex: number;
+	outcome: unknown;
+}
+
 export interface Engine {
 	/** Normalize a PDF. Throws password-required / password-wrong / unreadable. */
 	openPdf(bytes: Uint8Array, name: string, password?: string): Promise<Source>;
@@ -578,6 +608,13 @@ export interface Engine {
 	 * Loads MuPDF only when a page has a picture large enough to qualify.
 	 */
 	scannedPages(source: Source): Promise<number[]>;
+	/**
+	 * Added 2026-11-16. Reads one page `scannedPages` lists (0-based) with the export's OCR
+	 * (render, orientation and script check, OCR, gate, word filter), one page at a time.
+	 * Loads the OCR engine on first use. Never throws for a page it cannot read: the words
+	 * are then empty. Pages it was not given in `scannedPages` are not read (empty words).
+	 */
+	readScanPage(source: Source, pageIndex: number): Promise<ScanPageRead>;
 	/**
 	 * Pictures the print-size cap (ExportOptions.printCap) would bring down: one entry
 	 * per picture, the 0-based pages of `source` it is drawn on. [] for blank sources,

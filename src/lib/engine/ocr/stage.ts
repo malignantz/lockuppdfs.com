@@ -87,7 +87,7 @@ export interface ScanReading {
 /** Thrown in a slot that stops because another one failed. */
 class Halt extends Error {}
 
-const keyOf = (sourceId: string, pageIndex: number) => `${sourceId}:${pageIndex}`;
+export const keyOf = (sourceId: string, pageIndex: number) => `${sourceId}:${pageIndex}`;
 const now = () => performance.now();
 const cancelled = () => new EngineError('cancelled', 'Export cancelled. Nothing was saved.');
 
@@ -116,6 +116,13 @@ export async function eligiblePages(deps: EngineDeps, pages: PageRef[], byId: Ma
 
 export interface ReadOptions {
 	backend: () => Promise<OcrBackend>;
+	/**
+	 * Outcomes already read for some pages (by `sourceId:pageIndex`), by the editor's
+	 * background reader (Engine.readScanPage: the same render, workers, settings and gate),
+	 * used instead of reading those pages again. Everything after reading (the layer and
+	 * its checks) is unchanged.
+	 */
+	known?: ReadonlyMap<string, PageOutcome>;
 	control?: ExportControl;
 	trace?: (t: OcrTrace) => void;
 	debug?: (note: string) => void;
@@ -134,6 +141,15 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 		if (!jobs.has(key)) jobs.set(key, { key, source: byId.get(ref.sourceId)!, pageIndex: ref.pageIndex });
 	}
 	const outcomes = new Map<string, PageOutcome>();
+	for (const [key] of [...jobs]) {
+		const k = opts.known?.get(key);
+		// A page whose reader failed (a worker trap or time-out) is read again here.
+		if (k && isOutcome(k) && (k.ok || k.why !== 'failed')) {
+			outcomes.set(key, k);
+			jobs.delete(key);
+			opts.debug?.(`ocr: page ${key} read before (in the editor); not read again`);
+		}
+	}
 	if (!jobs.size) return { eligible, tried, outcomes };
 
 	throwIfCancelled(control);
@@ -209,18 +225,7 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 			doc = m.Document.openDocument(job.source.bytes, 'application/pdf');
 			docs.set(job.source.id, doc);
 		}
-		const page = doc.loadPage(job.pageIndex);
-		try {
-			const pix = page.toPixmap(m.Matrix.scale(OCR_DPI / 72, OCR_DPI / 72), m.ColorSpace.DeviceGray, false, false);
-			try {
-				return { png: pix.asPNG().slice(), w: pix.getWidth(), h: pix.getHeight() };
-			} finally {
-				pix.destroy();
-			}
-		} finally {
-			page.destroy();
-			m.emptyStore();
-		}
+		return renderForOcr(m, doc, job.pageIndex);
 	};
 
 	const slot = async () => {
@@ -311,6 +316,26 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 	return { eligible, tried, outcomes };
 }
 
+/**
+ * Page `pageIndex` of an opened document as OCR reads it: as displayed, at OCR_DPI,
+ * grey, without annotations (PNG). Shared by the export and the editor's background
+ * reader (Engine.readScanPage), so both read the very same image.
+ */
+export function renderForOcr(m: Mupdf, doc: MU.Document, pageIndex: number): { png: Uint8Array; w: number; h: number } {
+	const page = doc.loadPage(pageIndex);
+	try {
+		const pix = page.toPixmap(m.Matrix.scale(OCR_DPI / 72, OCR_DPI / 72), m.ColorSpace.DeviceGray, false, false);
+		try {
+			return { png: pix.asPNG().slice(), w: pix.getWidth(), h: pix.getHeight() };
+		} finally {
+			pix.destroy();
+		}
+	} finally {
+		page.destroy();
+		m.emptyStore();
+	}
+}
+
 /** The gate, then the word filter. */
 export function judge(raw: OcrRead): PageOutcome {
 	const sig = signals(raw.lines.flatMap((l) => l.words));
@@ -318,6 +343,28 @@ export function judge(raw: OcrRead): PageOutcome {
 	const lines = raw.lines.map((l) => ({ ...l, words: l.words.filter((w) => w[5] >= WORD_MIN_CONF) })).filter((l) => l.words.length > 0);
 	if (!lines.some((l) => l.words.some((w) => norm(w[0]) !== ''))) return { ok: false, why: 'no words', signals: sig };
 	return { ok: true, read: { ...raw, lines }, signals: sig };
+}
+
+/** A PageOutcome that came back from the main thread: checked for shape before use. */
+export function isOutcome(v: unknown): v is PageOutcome {
+	const o = v as PageOutcome | null;
+	if (!o || typeof o !== 'object' || typeof o.ok !== 'boolean') return false;
+	if (!o.ok) return typeof o.why === 'string';
+	const r = o.read as OcrRead | undefined;
+	return (
+		!!r &&
+		Number.isFinite(r.width) &&
+		Number.isFinite(r.height) &&
+		Number.isFinite(r.rotate) &&
+		Array.isArray(r.lines) &&
+		r.lines.every(
+			(l) =>
+				l &&
+				Array.isArray(l.words) &&
+				(l.baseline === null || (Array.isArray(l.baseline) && l.baseline.length === 4 && l.baseline.every(Number.isFinite))) &&
+				l.words.every((w) => Array.isArray(w) && typeof w[0] === 'string' && w.slice(1).every((x) => Number.isFinite(x)))
+		)
+	);
 }
 
 export interface LayerOutcome {

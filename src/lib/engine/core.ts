@@ -65,7 +65,8 @@ import { dumpStreams, isSigned, nativeDeflate, packStreams, type Deflater } from
 import { TextDocs, pageTextOf } from './page-text';
 import { NEED_BYTES } from './protocol';
 import { scannedPagesOf } from './ocr/eligible';
-import { addLayers, readScans, throwIfCancelled, verifyTextLayer, type OcrBackend, type OcrTrace, type ScanReading } from './ocr/stage';
+import { addLayers, keyOf, readScans, throwIfCancelled, verifyTextLayer, type OcrBackend, type OcrTrace, type PageOutcome, type ScanReading } from './ocr/stage';
+import { ScanPageReader } from './ocr/single';
 import type { WrittenWord } from './ocr/layer';
 import { graftTags, planTags, verifyTags, type GraftResult, type TagsPlan } from './tags';
 import { verifyWatermark, watermarkJob } from './watermark';
@@ -170,6 +171,10 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 	const deps: EngineDeps = { qpdf, mupdf: assets.mupdf ?? loadMupdf, pdfjs, pdfLib, font };
 	/** Documents opened for Engine.pageText, by source id. */
 	const textDocs = new TextDocs(2);
+	/** Engine.readScanPage: its OCR workers, started on first use. */
+	const scanReader = assets.ocr ? new ScanPageReader(assets.ocr, debug) : null;
+	/** Eligible pages per source, for Engine.readScanPage. */
+	const scanEligible = new Map<string, Promise<Set<number>>>();
 
 	async function checkStructure(bytes: Uint8Array, what: string) {
 		const res = await qpdf.run({ args: ['--check', '/c.pdf'], inputs: { '/c.pdf': bytes } });
@@ -438,6 +443,35 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 				return scannedPagesOf(qpdf, deps.mupdf, source.bytes, source.pages);
 			}),
 
+		readScanPage: (source, pageIndex) =>
+			guard(async () => {
+				const none = { text: { words: [], skipped: 0 }, reuse: { sourceId: source?.id ?? '', pageIndex, outcome: { ok: false, why: 'failed' } as PageOutcome }, ms: 0 };
+				if (!source || source.kind !== 'pdf' || !scanReader) return none;
+				if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= source.pages.length) {
+					throw new EngineError('internal', 'That page is not in the file.');
+				}
+				const m = await deps.mupdf();
+				// Bytes once, as for pageText (protocol.ts NEED_BYTES).
+				const bytes = source.bytes instanceof Uint8Array ? source.bytes : undefined;
+				const doc = textDocs.get(m, source.id, bytes);
+				if (!doc) throw new EngineError('internal', NEED_BYTES);
+				let eligible = scanEligible.get(source.id);
+				if (!eligible) {
+					if (!bytes) throw new EngineError('internal', NEED_BYTES);
+					eligible = scannedPagesOf(qpdf, deps.mupdf, bytes, source.pages).then((p) => new Set(p));
+					scanEligible.set(source.id, eligible);
+					eligible.catch(() => scanEligible.delete(source.id));
+				}
+				if (!(await eligible).has(pageIndex)) return none;
+				const t = now();
+				// The document may have been dropped from textDocs while waiting: open it again only with bytes.
+				const live = textDocs.get(m, source.id, bytes);
+				if (!live) throw new EngineError('internal', NEED_BYTES);
+				const r = await scanReader.read(deps, m, live, pageIndex);
+				debug(`scan reader: page ${pageIndex + 1} ${r.outcome.ok ? `${r.text.words.length} words` : `declined (${r.outcome.why})`}; render ${Math.round(r.ms.render)} ms, orientation ${Math.round(r.ms.orient)} ms, reading ${Math.round(r.ms.read)} ms, words ${Math.round(r.ms.words)} ms`);
+				return { text: r.text, reuse: { sourceId: source.id, pageIndex, outcome: r.outcome }, ms: now() - t };
+			}),
+
 		oversizedPictures: (source) =>
 			guard(async () => {
 				if (!source || !(source.bytes instanceof Uint8Array) || !Array.isArray(source.pages)) return [];
@@ -544,7 +578,10 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 		let reading: ScanReading | null = again ? again.reading : null;
 		if (options.ocr === true && !again) {
 			if (!assets.ocr) throw new EngineError('unsupported', 'Making pages searchable is not available here.');
-			reading = await readScans(deps, pages, byId, { backend: assets.ocr, control, trace: ocrTrace, debug });
+			const known = new Map<string, PageOutcome>();
+			for (const k of Array.isArray(options.ocrKnown) ? options.ocrKnown : [])
+				if (k && typeof k.sourceId === 'string' && Number.isInteger(k.pageIndex)) known.set(keyOf(k.sourceId, k.pageIndex), k.outcome as PageOutcome);
+			reading = await readScans(deps, pages, byId, { backend: assets.ocr, control, trace: ocrTrace, debug, known });
 		}
 		throwIfCancelled(control);
 

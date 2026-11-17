@@ -68,6 +68,7 @@ export const METHODS: readonly EngineMethod[] = [
 	'pageBlanks',
 	'pageText',
 	'scannedPages',
+	'readScanPage',
 	'oversizedPictures',
 	'bilevelPages',
 	'bilevelPreview'

@@ -8,7 +8,7 @@
  * the worker, which keeps no reference to them.
  */
 
-import type { Engine, ExportControl, ExportProgress } from '../core/types';
+import type { Engine, ExportControl, ExportProgress, Source } from '../core/types';
 import { EngineError, fromErrorShape } from './errors';
 import { NEED_BYTES, TAG, isProgress, isResponse, isRestart, type EngineCancel, type EngineMethod, type EngineRequest } from './protocol';
 
@@ -179,6 +179,26 @@ export function createEngine(options: { createWorker?: () => WorkerLike } = {}):
 		});
 	};
 
+	/**
+	 * pageText and readScanPage send a source's bytes to the worker once; later calls name
+	 * it by id, and a worker that dropped the file answers NEED_BYTES (protocol.ts).
+	 */
+	const withBytesOnce = async <T>(method: 'pageText' | 'readScanPage', source: Source, pageIndex: number): Promise<T> => {
+		if (textSent.has(source.id)) {
+			try {
+				return await call<T>(method, [{ ...source, bytes: undefined }, pageIndex]);
+			} catch (e) {
+				if (!(e instanceof EngineError && e.message === NEED_BYTES)) throw e;
+			}
+		}
+		const pending = call<T>(method, [source, pageIndex]);
+		// The set of the worker this call went to (it may have just been started).
+		const sent = textSent;
+		const res = await pending;
+		sent.add(source.id);
+		return res;
+	};
+
 	return {
 		openPdf: (bytes, name, password) => call('openPdf', [bytes, name, password]),
 		openImage: (bytes, mime, name) => call('openImage', [bytes, mime, name]),
@@ -191,21 +211,8 @@ export function createEngine(options: { createWorker?: () => WorkerLike } = {}):
 		oversizedPictures: (source) => call('oversizedPictures', [source]),
 		bilevelPages: (source) => call('bilevelPages', [source]),
 		bilevelPreview: (source, pageIndex) => call('bilevelPreview', [source, pageIndex]),
-		pageText: async (source, pageIndex) => {
-			if (textSent.has(source.id)) {
-				try {
-					return await call('pageText', [{ ...source, bytes: undefined }, pageIndex]);
-				} catch (e) {
-					if (!(e instanceof EngineError && e.message === NEED_BYTES)) throw e;
-				}
-			}
-			const pending = call<Awaited<ReturnType<EngineClient['pageText']>>>('pageText', [source, pageIndex]);
-			// The set of the worker this call went to (it may have just been started).
-			const sent = textSent;
-			const res = await pending;
-			sent.add(source.id);
-			return res;
-		},
+		pageText: (source, pageIndex) => withBytesOnce('pageText', source, pageIndex),
+		readScanPage: (source, pageIndex) => withBytesOnce('readScanPage', source, pageIndex),
 		terminate: () => reset('The PDF engine was stopped.')
 	};
 }
