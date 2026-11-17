@@ -474,7 +474,8 @@
 
 	/** On phones the bar shows these four and a More slot; the rest are in the More sheet. */
 	const PHONE_BAR = new Set<Tool>(['signature', 'text', 'cross', 'highlight']);
-	const MORE_TOOLS = TOOLS.filter((t) => !PHONE_BAR.has(t.id));
+	/** Select text, first on the side rail, comes last in the sheet: on touch it is not the default. */
+	const MORE_TOOLS = [...TOOLS.filter((t) => !PHONE_BAR.has(t.id) && t.id !== 'select'), TOOLS[0]];
 	const isMark = (t: Tool | null): t is 'check' | 'cross' | 'dot' => t === 'check' || t === 'cross' || t === 'dot';
 	/** Tools whose box is drawn with a drag; they stay armed for several boxes. */
 	const isDrawn = (t: Tool | null): t is 'highlight' | 'redact' => t === 'highlight' || t === 'redact';
