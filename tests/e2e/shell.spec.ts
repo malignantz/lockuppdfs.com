@@ -119,9 +119,9 @@ test('privacy page renders and links to the source', async ({ page }) => {
 	await page.goto('/privacy');
 	await expect(page.getByRole('heading', { level: 1, name: 'Your files stay on this device' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Check it yourself' })).toBeVisible();
-	await expect(page.getByRole('link', { name: /github\.com\/malignantz\/pdf\.garrettholmes\.com/ })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: /github\.com\/malignantz\/lockuppdfs\.com/ })).toHaveAttribute(
 		'href',
-		'https://github.com/malignantz/pdf.garrettholmes.com'
+		'https://github.com/malignantz/lockuppdfs.com'
 	);
 	// The top-bar shield link leads here too.
 	await page.goto('/');

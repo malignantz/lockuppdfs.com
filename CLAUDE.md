@@ -1,4 +1,4 @@
-# pdf.garrettholmes.com — rules for agents
+# lockuppdfs.com repo (pdf.garrettholmes.com + LockUpPDFs.com): rules for agents
 
 Local-first PDF workspace. Read `docs/plans/plan-2026-11-09.md` (vision,
 architecture, ownership table) and `DESIGN.md` before changing anything.

@@ -2,7 +2,7 @@
 	import Icon from '#lib/ui/Icon.svelte';
 	import { campaign, SITE_HOST } from '../../lib/site/site';
 
-	const repo = 'https://github.com/malignantz/pdf.garrettholmes.com';
+	const repo = 'https://github.com/malignantz/lockuppdfs.com';
 </script>
 
 <svelte:head>
