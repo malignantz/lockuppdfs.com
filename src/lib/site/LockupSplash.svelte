@@ -108,7 +108,7 @@
 			<h2 id="give-heading" class="give-heading">{splash.give.heading}</h2>
 		</div>
 		<div class="give-body">
-			<p class="give-lead">{splash.give.lead}</p>
+			<p class="give-lead">{splash.give.lead} <strong class="give-goal">{campaign.ask.goal}</strong></p>
 			<ul class="give-links">
 				{#each campaign.ask.links as link (link.href)}
 					<li>
@@ -541,6 +541,12 @@
 
 	.give-links a:hover {
 		background: #2e2c29;
+	}
+
+	.give-goal {
+		display: block;
+		margin-top: var(--s-2);
+		font-weight: 800;
 	}
 
 	.give-note {

@@ -14,6 +14,7 @@
 	<aside class="ask lockup-theme" aria-label="A note after your download">
 		{#if fee}<p class="fee" aria-hidden="true"><span>{fee.label}</span><span class="amount">{fee.amount}</span></p>{/if}
 		<p class="lead">{ask.lead}</p>
+		<p class="goal">{ask.goal}</p>
 		<ul class="links">
 			{#each ask.links as link (link.href)}
 				<li><a href={link.href} target="_blank" rel="noopener noreferrer">{link.label}</a></li>
@@ -100,6 +101,10 @@
 
 	.links a:hover {
 		background: #2e2c29;
+	}
+
+	.goal {
+		font-weight: 700;
 	}
 
 	.note {

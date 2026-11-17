@@ -53,7 +53,9 @@ export interface Campaign {
 	// The link preview image (design/lockup/og.html, rendered by scripts/make-lockup-art.mjs).
 	share: { line: string; alt: string };
 	// Shown once on the export result screen, only after the file is saved.
-	ask: { lead: string; links: CampaignLink[]; note: string };
+	// goal is the fundraiser's target, said once beside the link. No amount raised is shown:
+	// the page cannot know it without calling another site.
+	ask: { lead: string; goal: string; links: CampaignLink[]; note: string };
 }
 
 export const SITE_ID: SiteId = import.meta.env.VITE_SITE === 'lockup' ? 'lockup' : 'plain';
@@ -96,6 +98,7 @@ const lockup: Campaign = {
 	},
 	ask: {
 		lead: 'That was free. Donate to charity, not PDF software companies: give what you would have paid to child protection instead.',
+		goal: 'Our goal: $25,000 for NCMEC by November 2027.',
 		links: [
 			// One link on purpose: every gift counts toward the one fundraiser.
 			{ label: 'Give to NCMEC', href: 'https://give.missingkids.org/LockUpPDFs' }
