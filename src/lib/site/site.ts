@@ -65,14 +65,14 @@ const lockup: Campaign = {
 	description:
 		'Combine, sign, lock and fix PDFs for free. Your files stay on your device, and nothing is charged when you download.',
 	splash: {
-		headline: ['PDFs.', 'Locked up.'],
+		headline: ['PDF files.', 'Locked up.'],
 		dropping: 'Drop them in.',
 		photoLabel:
 			'A booking photo of a PDF document standing against a height chart, holding a letter board that reads: PDF file, locked up, fee: $0.00.',
 		// "FEE", not "CHARGE": the giving lead wants PDF files charged in court, so the board
 		// only says what the download costs.
 		placard: { header: 'LOCKUPPDFS.COM', lines: ['PDF FILE', 'LOCKED UP'], fee: ['FEE:', '$0.00'] },
-		statement: 'Free PDF tools. Combine, sign, shrink, convert.',
+		statement: 'Free PDF tools. Combine, sign, shrink, convert. Donate?',
 		drop: 'or drop files here',
 		chips: [
 			{ label: 'Combine', tool: 'Combine files' },
@@ -91,8 +91,8 @@ const lockup: Campaign = {
 	},
 	fee: { label: 'Download fee', amount: '$0.00' },
 	share: {
-		line: 'Free PDF tools. Combine, sign, shrink, convert.',
-		alt: 'A booking photo of a PDF document holding a letter board: PDF file, locked up, fee: $0.00. Beside it: PDFs. Locked up. Free PDF tools. lockuppdfs.com'
+		line: 'Free PDF tools. Combine, sign, shrink, convert. Donate?',
+		alt: 'A booking photo of a PDF document holding a letter board: PDF file, locked up, fee: $0.00. Beside it: PDF files. Locked up. Free PDF tools. lockuppdfs.com'
 	},
 	ask: {
 		lead: 'That was free. Donate to charity, not PDF software companies: give what you would have paid to child protection instead.',

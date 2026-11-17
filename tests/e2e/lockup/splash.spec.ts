@@ -16,8 +16,8 @@ test('on a 390x844 phone the first screen says what the site is, shows the butto
 	await page.goto('/');
 	const photo = page.getByRole('img', { name: /^A booking photo of a PDF document/ });
 	await expect(photo).toBeInViewport({ ratio: 1 });
-	await expect(page.getByRole('heading', { level: 1, name: 'PDFs. Locked up.' })).toBeInViewport({ ratio: 1 });
-	const statement = page.getByText('Free PDF tools. Combine, sign, shrink, convert.');
+	await expect(page.getByRole('heading', { level: 1, name: 'PDF files. Locked up.' })).toBeInViewport({ ratio: 1 });
+	const statement = page.getByText('Free PDF tools. Combine, sign, shrink, convert. Donate?');
 	await expect(statement).toBeInViewport({ ratio: 1 });
 	const choose = page.getByRole('button', { name: 'Choose files' });
 	await expect(choose).toBeInViewport({ ratio: 1 });
@@ -92,7 +92,7 @@ test('on a desktop the button sits in a drawn drop area that says so', async ({ 
 	await expect(page.getByText('or drop files here')).toBeVisible();
 	expect(await page.locator('.cta').evaluate((el) => getComputedStyle(el).borderStyle)).toBe('dashed');
 	expect((await choose.boundingBox())!.height).toBeGreaterThanOrEqual(60);
-	await expect(page.getByText('Free PDF tools. Combine, sign, shrink, convert.')).toBeInViewport({ ratio: 1 });
+	await expect(page.getByText('Free PDF tools. Combine, sign, shrink, convert. Donate?')).toBeInViewport({ ratio: 1 });
 });
 
 test('the giving links are on the splash, from site.ts, as plain new-tab links; nothing goes to another host', async ({
