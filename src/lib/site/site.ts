@@ -18,8 +18,20 @@ export interface Campaign {
 	name: string;
 	title: string;
 	description: string;
-	// Shown on the start page, above the usual content.
-	pitch: { heading: string; body: string };
+	// The start page poster ("Behind bars"). headline is the h1; lowercase letters stay lowercase.
+	splash: {
+		headline: string;
+		/** The h1 while files are dragged over the page. */
+		dropping: string;
+		tagline: string;
+		sub: string;
+		/** One small reassurance under the button. */
+		proof: string;
+		/** The ticket stub on the giving band: a label and this site's own price. */
+		fee: { label: string; amount: string };
+		/** The giving band; its links are ask.links and its small print is ask.note. */
+		give: { label: string; lead: string };
+	};
 	// Shown once on the export result screen, only after the file is saved.
 	ask: { lead: string; links: CampaignLink[]; note: string };
 }
@@ -31,9 +43,17 @@ const lockup: Campaign = {
 	title: 'LockUpPDFs: free PDF tools with no charge at the download',
 	description:
 		'Combine, sign, lock and fix PDFs for free. Your files stay on your device, and nothing is charged when you download.',
-	pitch: {
-		heading: 'Free, including the download.',
-		body: 'Some PDF sites let you do the work and then charge you for the file. This one does not. It is free, and your files never leave your device.'
+	splash: {
+		headline: 'LOCK UP PDFs.',
+		dropping: 'DROP THEM IN.',
+		tagline: 'PDF files belong behind bars.',
+		sub: 'Free PDF tools. Nothing to pay at the download.',
+		proof: 'No account. Your files never leave this device.',
+		fee: { label: 'Download fee', amount: '$0.00' },
+		give: {
+			label: 'Give what you saved',
+			lead: 'Other sites charge you for the file. This one is free. Give what you saved to the people who protect children from the other kind of PDF file.'
+		}
 	},
 	ask: {
 		lead: 'That was free. If another site would have charged you for it, consider giving that money to child protection instead.',

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+	<!-- LockUpPDFs mark, full detail: a prison-orange document behind cell bars, with a padlock.
+	     Same drawing as src/lib/site/LockupIcon.svelte. -->
+	<path fill="#ff6b1a" d="M30 12h42l22 22v70a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4V16a4 4 0 0 1 4-4z"/>
+	<path fill="#ffb27f" d="M72 12v18a4 4 0 0 0 4 4h18z"/>
+	<g fill="#0d0d0c" opacity=".55">
+		<rect x="34" y="24" width="26" height="6" rx="3"/>
+		<rect x="34" y="42" width="52" height="4" rx="2"/>
+		<rect x="34" y="52" width="44" height="4" rx="2"/>
+		<rect x="34" y="62" width="52" height="4" rx="2"/>
+		<rect x="34" y="72" width="36" height="4" rx="2"/>
+	</g>
+	<g fill="#f4efe6" stroke="#0d0d0c" stroke-width="3" paint-order="stroke">
+		<rect x="36" y="3" width="9" height="114" rx="4.5"/>
+		<rect x="55.5" y="3" width="9" height="114" rx="4.5"/>
+		<rect x="75" y="3" width="9" height="114" rx="4.5"/>
+	</g>
+	<path d="M51.5 86V77a8.5 8.5 0 0 1 17 0v9" fill="none" stroke="#0d0d0c" stroke-width="14" stroke-linecap="round"/>
+	<path d="M51.5 86V77a8.5 8.5 0 0 1 17 0v9" fill="none" stroke="#f4efe6" stroke-width="7" stroke-linecap="round"/>
+	<rect x="42" y="83.5" width="36" height="29" rx="5.5" fill="#f4efe6" stroke="#0d0d0c" stroke-width="3"/>
+	<path fill="#0d0d0c" d="M60 91a4.5 4.5 0 0 1 2.7 8.1l1.3 7.4h-8l1.3-7.4A4.5 4.5 0 0 1 60 91z"/>
+</svg>
