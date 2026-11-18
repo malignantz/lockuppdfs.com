@@ -157,6 +157,13 @@ export interface PageText {
 	words: TextWord[];
 	/** Characters on the page that are not offered (see above). */
 	skipped: number;
+	/**
+	 * Added 2026-11-18 ("Mark for blackout"): annotations on the page, whose text is never
+	 * part of `words`. `comments`: every annotation other than links, popups and form field
+	 * widgets (notes, highlights, stamps, free text…); `fields`: form field widgets. Absent
+	 * when the page has neither (and on image and blank sources).
+	 */
+	annots?: { comments: number; fields: number };
 }
 
 export interface TextWord {
@@ -328,6 +335,27 @@ export interface ExportOptions {
 	 * ('bilevel'). See BilevelReport.
 	 */
 	bilevel?: boolean;
+	/**
+	 * Added 2026-11-18 ("Mark for blackout"): words the person blacked out with Find. After
+	 * every other check the final file is read again (MuPDF, every page, with the password)
+	 * and none of these may appear: in the page text read more thoroughly than Find does
+	 * (lines joined, hyphenated line ends rejoined, also with spaces ignored at word edges,
+	 * case, accents and spacing folded, text in hidden layers and outside the crop included),
+	 * nor in any text string left in the file (form field values, comments, annotation
+	 * contents, names of things). Any left: the 'blackout' check fails and nothing is
+	 * delivered. 1 to 50 terms, each 1 to 200 characters with something to search.
+	 */
+	blackoutTerms?: string[];
+}
+
+/**
+ * ExportResult.blackout (2026-11-18). `terms`: the terms checked. `unchecked`: 1-based
+ * output pages that are pictures with no text at all, which the check cannot read (a term
+ * could still be in the picture).
+ */
+export interface BlackoutReport {
+	terms: string[];
+	unchecked: number[];
 }
 
 /**
@@ -400,7 +428,12 @@ export interface VerifyCheck {
 		 * Added 2026-11-14: every page made black and white (ExportOptions.bilevel) decodes, in two
 		 * independent decoders, to exactly the bitmap that passed the "nothing vanished" check.
 		 */
-		| 'bilevel';
+		| 'bilevel'
+		/**
+		 * Added 2026-11-18: none of ExportOptions.blackoutTerms appears anywhere in the final
+		 * file's text (page text joined across lines, form fields, comments, other strings).
+		 */
+		| 'blackout';
 	ok: boolean;
 	detail: string;
 }
@@ -462,6 +495,8 @@ export interface ExportResult {
 	docInfo?: { kept: true } | { kept: false; reason: DocInfoDropReason };
 	/** Added 2026-11-14. Present when ExportOptions.bilevel was on. */
 	bilevel?: BilevelReport;
+	/** Added 2026-11-18. Present when ExportOptions.blackoutTerms had any term. */
+	blackout?: BlackoutReport;
 }
 
 /**

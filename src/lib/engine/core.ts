@@ -74,6 +74,7 @@ import type { WrittenWord } from './ocr/layer';
 import { graftTags, planTags, verifyTags, type GraftResult, type TagsPlan } from './tags';
 import { verifyWatermark, watermarkJob } from './watermark';
 import { applyCrops, croppedSize, validateCrop, verifyCrops } from './crop';
+import { blackoutForms, verifyBlackout, type BlackoutVerdict } from './blackout';
 import { graftOutline, outlineWork, planOutline, verifyOutline, type OutlineFailure, type OutlineGraft } from './outline';
 import { checkIsClean, finalCheck } from './final-check';
 
@@ -556,6 +557,9 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 		if (password !== undefined) validatePassword(password);
 		if (target !== undefined) validateTarget(target);
 		if (options.numbering !== undefined) validateNumbering(options.numbering);
+		// Words blacked out with Find: checked last, on the final file (blackout.ts).
+		const blackoutTerms = blackoutForms(options.blackoutTerms);
+		const blackoutLast: { verdict: BlackoutVerdict | null } = { verdict: null };
 
 		// Validate the plan and work out what every output page must look like.
 		const byId = new Map(sources.map((s) => [s.id, s]));
@@ -832,7 +836,7 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 
 		// (f) Verify.
 		// Whether the structure check is the last slow part (the checks below it are not quick).
-		const last = !formsRan && redactJobs.length === 0 && !numbering && !wmJob && !anyCrop && made.length === 0 && layered.size === 0 && !bilevel?.expected.size;
+		const last = !formsRan && redactJobs.length === 0 && !numbering && !wmJob && !anyCrop && made.length === 0 && layered.size === 0 && !bilevel?.expected.size && blackoutTerms.length === 0;
 		const checkProgress = report && ((done: number, total: number) => report({ stage: 'check', done, total, last }));
 		const verifyAll = async (file: Uint8Array, w: string[]) => {
 			const checks = await verify(file, expected, password, options.stripMetadata, used, w, checkProgress);
@@ -856,6 +860,12 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 				checks.push(v.check);
 			}
 			checks.push(...stageChecks);
+			// After every other check: the words blacked out with Find are gone from the final file.
+			if (blackoutTerms.length) {
+				const v = await verifyBlackout(deps, file, blackoutTerms, password);
+				blackoutLast.verdict = v;
+				checks.push(v.check);
+			}
 			return checks;
 		};
 		let checks = await verifyAll(final, warnings);
@@ -892,7 +902,10 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 			});
 		}
 		if (!checks.every((c) => c.ok)) {
-			throw new EngineError('verification-failed', 'The exported file did not pass its checks, so it was not saved.', checks);
+			// Only blacked-out words left: say which, and where.
+			const only = checks.every((c) => c.ok || c.name === 'blackout');
+			const message = only && blackoutLast.verdict?.message ? blackoutLast.verdict.message : 'The exported file did not pass its checks, so it was not saved.';
+			throw new EngineError('verification-failed', message, checks);
 		}
 		const result: ExportResult = {
 			bytes: final,
@@ -920,6 +933,7 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 		if (bookmarksInfo) result.bookmarks = bookmarksInfo;
 		if (docInfo) result.docInfo = docInfo;
 		if (bilevel) result.bilevel = bilevel.report;
+		if (blackoutLast.verdict) result.blackout = blackoutLast.verdict.report;
 		return result;
 	}
 

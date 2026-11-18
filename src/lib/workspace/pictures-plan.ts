@@ -144,5 +144,7 @@ export function pictureExportOptions(o: ExportOptions): ExportOptions {
 	if (o.flattenForms) out.flattenForms = true;
 	if (o.numbering) out.numbering = o.numbering;
 	if (o.watermark) out.watermark = o.watermark;
+	// The PDF the pictures are drawn from is checked for blacked-out words like any export.
+	if (o.blackoutTerms?.length) out.blackoutTerms = o.blackoutTerms;
 	return out;
 }

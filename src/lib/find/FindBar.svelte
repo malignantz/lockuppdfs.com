@@ -17,6 +17,7 @@
 	import { foldQuery, matchPages, type DocHit } from './match';
 	import { findStatus } from './status';
 	import { rangeBox, type LayerLine } from './lines';
+	import MarkBlackout from './MarkBlackout.svelte';
 	import type { StampBox } from '../core/types';
 
 	interface Props {
@@ -220,6 +221,11 @@
 	</div>
 	<p id="find-status" class="status" role="status">{status.said}</p>
 	{#if status.note}<p class="note" data-testid="find-note">{status.note}</p>{/if}
+	{#if query && hits.length && !result.truncated}
+		<div class="mark">
+			<MarkBlackout {pages} {sources} {query} term={find.query} hits={hits.length} />
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -298,6 +304,11 @@
 		white-space: nowrap;
 	}
 
+	.mark {
+		display: flex;
+		padding: 2px var(--s-1) var(--s-1) 26px;
+	}
+
 	.note {
 		margin: 0;
 		padding: 0 var(--s-2) var(--s-1) 26px;
@@ -317,6 +328,15 @@
 		.buttons :global(.icon-btn) {
 			width: 44px;
 			height: 44px;
+		}
+
+		.mark {
+			padding-left: 0;
+		}
+
+		.mark :global(.mark-btn) {
+			flex: 1;
+			min-height: 44px;
 		}
 	}
 </style>

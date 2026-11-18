@@ -179,6 +179,7 @@ interface Sig {
 	sources: DocState['sources'];
 	assets: DocState['assets'];
 	formValues: DocState['formValues'];
+	blackout: DocState['blackout'];
 	dirty: boolean;
 	form: string;
 }
@@ -297,6 +298,7 @@ export function createSession(deps: SessionDeps) {
 			sources: st.sources,
 			assets: st.assets,
 			formValues: st.formValues,
+			blackout: st.blackout,
 			dirty: st.isDirty,
 			form: JSON.stringify(deps.exportForm.get())
 		};
@@ -309,6 +311,7 @@ export function createSession(deps: SessionDeps) {
 			a.sources === b.sources &&
 			a.assets === b.assets &&
 			a.formValues === b.formValues &&
+			a.blackout === b.blackout &&
 			a.dirty === b.dirty &&
 			a.form === b.form
 		);
@@ -580,7 +583,8 @@ export function createSession(deps: SessionDeps) {
 				assets: st.assets,
 				assetBlobs: assetMap,
 				formValues: st.formValues,
-				exportForm: deps.exportForm.get()
+				exportForm: deps.exportForm.get(),
+				blackout: st.blackout
 			});
 			const needs = [...new Set([...blobs.values(), ...assetMap.values()].map((b) => b.hash))];
 			let seen: unknown = undefined;
@@ -976,7 +980,7 @@ export function createSession(deps: SessionDeps) {
 				.map((a) => ({ id: a.id, kind: a.kind, width: a.width, height: a.height, png: bytes.get(a.hash)! }));
 			const formValues = Object.fromEntries(Object.entries(rec.formValues).filter(([fid]) => kept.has(fid)));
 			releaseCurrent();
-			store.restore({ sources, pages, assets, formValues }, { clean: rec.clean && skipped === 0 });
+			store.restore({ sources, pages, assets, formValues, blackout: rec.blackout ?? [] }, { clean: rec.clean && skipped === 0 });
 			deps.exportForm.set(rec.exportForm);
 
 			for (const [sid, k] of restoredKnown) known.set(sid, k);

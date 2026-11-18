@@ -2819,5 +2819,13 @@
 	"find-none.pdf": {
 		"pages": 2,
 		"note": "Find: drawn shapes only, no text, no scan"
+	},
+	"blackout-names.pdf": {
+		"pages": 4,
+		"note": "Mark for blackout: \"Jane Doe\" twice on p1, once on p2 and p4 (Find sees 4 on 3 pages); p3 wraps it across two lines"
+	},
+	"blackout-hidden.pdf": {
+		"pages": 5,
+		"note": "Mark for blackout: \"Jane Doe\" in a form field (p1), a comment (p2), below the crop (p4), hyphenated (p5); p3 a picture with no text"
 	}
 }

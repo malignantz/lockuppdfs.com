@@ -21,6 +21,7 @@ import type {
 import { newId } from './ids';
 import { turnStamp } from './turn';
 import { isFull, isValidCrop, reframeStamp, shownSize } from './crop';
+import { termKey } from '../engine/blackout-text';
 
 export { newId };
 
@@ -58,6 +59,13 @@ export interface DocState {
 	 * `sources` appear; a source's answers leave with its last page and come back on undo.
 	 */
 	readonly formValues: FormValues;
+	/**
+	 * Added 2026-11-18 ("Mark for blackout"): words marked for blackout from Find, as typed,
+	 * one per term (find/blackout.ts termKey), in the order marked. Every export checks the
+	 * final file for them (ExportOptions.blackoutTerms). Part of undo history; empty when
+	 * the document has no pages.
+	 */
+	readonly blackout: readonly string[];
 	/** Selected page ids. Not part of undo history. */
 	readonly selection: ReadonlySet<PageId>;
 	/** Anchor for shift-range selection, or null. */
@@ -79,6 +87,8 @@ export interface DocSnapshot {
 	readonly pages: readonly PageRef[];
 	readonly assets: readonly Asset[];
 	readonly formValues: FormValues;
+	/** Absent: none (saved work from before 2026-11-18). */
+	readonly blackout?: readonly string[];
 }
 
 export interface DocStoreOptions {
@@ -127,6 +137,15 @@ export interface DocStore {
 	reversePages(ids?: Iterable<PageId>): boolean;
 	sortBySource(): boolean;
 	addStamp(pageId: PageId, stamp: NewStamp): string;
+	/**
+	 * Mark for blackout (2026-11-18): add redaction boxes (ordinary `redact` stamps) on pages
+	 * and remember `term` for the export's check, as one step "Mark N for blackout". Boxes
+	 * are validated like addStamp (inside the page, a positive size). Returns the new stamp
+	 * ids. Throws on an unknown page or an empty term; nothing changes then.
+	 */
+	markForBlackout(term: string, boxes: readonly { pageId: PageId; box: StampBox }[]): string[];
+	/** Stop checking exports for a marked term (its boxes stay). One step; false when it was not marked. */
+	dropBlackoutTerm(term: string): boolean;
 	updateStamp(pageId: PageId, stampId: string, patch: StampPatch): boolean;
 	removeStamp(pageId: PageId, stampId: string): boolean;
 	addAsset(asset: Asset): void;
@@ -181,6 +200,7 @@ interface Doc {
 	readonly pages: readonly PageRef[];
 	readonly assets: readonly Asset[];
 	readonly formValues: FormValues;
+	readonly blackout: readonly string[];
 }
 
 interface Entry {
@@ -192,7 +212,8 @@ interface Entry {
 }
 
 const EMPTY_VALUES: FormValues = Object.freeze({});
-const EMPTY_DOC: Doc = Object.freeze({ sources: [], pages: [], assets: [], formValues: EMPTY_VALUES });
+const NO_TERMS: readonly string[] = Object.freeze([]);
+const EMPTY_DOC: Doc = Object.freeze({ sources: [], pages: [], assets: [], formValues: EMPTY_VALUES, blackout: NO_TERMS });
 
 const HIGHLIGHT_COLORS = ['yellow', 'green', 'pink'];
 
@@ -297,6 +318,14 @@ function checkPen(pen: unknown, box: StampBox): void {
 	}
 }
 
+/** A blackout term as kept: spacing collapsed, trimmed, at most 200 characters (blackout-text.ts MAX_TERM_LENGTH). */
+function cleanTerm(term: string): string {
+	const t = String(term ?? '').replace(/\s+/g, ' ').trim();
+	return t.length > 200 ? '' : t;
+}
+/** Two terms the export's check treats as one (blackout-text.ts termKey). */
+const sameTerm = (a: string, b: string) => termKey(a) === termKey(b);
+
 function valuesEqual(a: unknown, b: unknown): boolean {
 	if (a === b) return true;
 	if (typeof a !== 'object' || typeof b !== 'object' || !a || !b) return false;
@@ -356,6 +385,7 @@ export function createDocStore(options: DocStoreOptions = {}): DocStore {
 			pages: doc.pages,
 			assets: doc.assets,
 			formValues: doc.formValues,
+			blackout: doc.blackout,
 			selection,
 			anchor,
 			canUndo: !!u && !gesture,
@@ -406,7 +436,9 @@ export function createDocStore(options: DocStoreOptions = {}): DocStore {
 			for (const [id, v] of Object.entries(formValues)) if (used.has(id)) next[id] = v;
 			formValues = Object.freeze(next);
 		}
-		return sources === d.sources && formValues === d.formValues ? d : { ...d, sources, formValues };
+		// Marked words belong to a document: they go with its last page.
+		const blackout = d.pages.length === 0 && d.blackout.length ? NO_TERMS : d.blackout;
+		return sources === d.sources && formValues === d.formValues && blackout === d.blackout ? d : { ...d, sources, formValues, blackout };
 	}
 
 	/** Release sources that neither the document nor any history entry references. */
@@ -708,6 +740,46 @@ export function createDocStore(options: DocStoreOptions = {}): DocStore {
 		return id;
 	}
 
+	function markForBlackout(term: string, boxes: readonly { pageId: PageId; box: StampBox }[]): string[] {
+		const t = cleanTerm(term);
+		if (!t) throw new Error('DocStore: a blackout term needs something to search');
+		const taken = new Set(doc.pages.flatMap((p) => p.stamps.map((s) => s.id)));
+		const byPage = new Map<PageId, Stamp[]>();
+		const ids: string[] = [];
+		for (const { pageId, box } of boxes) {
+			if (pageIndexById(doc, pageId) < 0) throw new Error(`DocStore: unknown page ${pageId}`);
+			const fin = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+			const eps = 1e-6;
+			if (!box || !fin(box.x) || !fin(box.y) || !fin(box.w) || !fin(box.h) || !(box.w > 0) || !(box.h > 0)) throw new Error('DocStore: bad blackout box');
+			if (box.x < -eps || box.y < -eps || box.x + box.w > 1 + eps || box.y + box.h > 1 + eps) throw new RangeError('DocStore: blackout box outside the page');
+			const id = freshId((x) => taken.has(x));
+			taken.add(id);
+			ids.push(id);
+			const list = byPage.get(pageId) ?? [];
+			list.push({ id, kind: 'redact', box: { ...box } });
+			byPage.set(pageId, list);
+		}
+		const n = ids.length;
+		run(`Mark ${n} for blackout`, (d) => {
+			const known = d.blackout.some((x) => sameTerm(x, t));
+			if (!n && known) return null;
+			return {
+				...d,
+				pages: n ? d.pages.map((p) => (byPage.has(p.id) ? { ...p, stamps: [...p.stamps, ...byPage.get(p.id)!] } : p)) : d.pages,
+				blackout: known ? d.blackout : Object.freeze([...d.blackout, t])
+			};
+		});
+		return ids;
+	}
+
+	function dropBlackoutTerm(term: string): boolean {
+		const t = cleanTerm(term);
+		return run(`Stop checking for “${t}”`, (d) => {
+			const next = d.blackout.filter((x) => !sameTerm(x, t));
+			return next.length === d.blackout.length ? null : { ...d, blackout: Object.freeze(next) };
+		});
+	}
+
 	function updateStamp(pageId: PageId, stampId: string, patch: StampPatch): boolean {
 		return run('Edit stamp', (d) =>
 			mapPage(d, pageId, (p) => {
@@ -872,7 +944,7 @@ export function createDocStore(options: DocStoreOptions = {}): DocStore {
 				throw new Error('DocStore: bad or duplicate asset in a saved document');
 			assetIds.add(a.id);
 		}
-		const probe: Doc = { sources, pages: [], assets, formValues: EMPTY_VALUES };
+		const probe: Doc = { sources, pages: [], assets, formValues: EMPTY_VALUES, blackout: NO_TERMS };
 		const pageIds = new Set<string>();
 		const stampIds = new Set<string>();
 		const pages = snapshot.pages.map((r) => {
@@ -902,7 +974,13 @@ export function createDocStore(options: DocStoreOptions = {}): DocStore {
 		}
 
 		gesture = null;
-		doc = { sources, pages, assets, formValues: Object.freeze(values) };
+		const blackout: string[] = [];
+		for (const term of snapshot.blackout ?? []) {
+			const t = typeof term === 'string' ? cleanTerm(term) : '';
+			if (!t) throw new Error('DocStore: bad blackout term in a saved document');
+			if (!blackout.some((x) => sameTerm(x, t))) blackout.push(t);
+		}
+		doc = { sources, pages, assets, formValues: Object.freeze(values), blackout: blackout.length ? Object.freeze(blackout) : NO_TERMS };
 		cleanDoc = opts.clean ? doc : EMPTY_DOC;
 		undoStack = [];
 		redoStack = [];
@@ -1134,6 +1212,8 @@ export function createDocStore(options: DocStoreOptions = {}): DocStore {
 		reversePages,
 		sortBySource,
 		addStamp,
+		markForBlackout,
+		dropBlackoutTerm,
 		updateStamp,
 		removeStamp,
 		addAsset,

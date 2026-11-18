@@ -14,6 +14,7 @@
 	import CampaignAsk from '../site/CampaignAsk.svelte';
 	import OptionPicker from './OptionPicker.svelte';
 	import WatermarkPreview from './WatermarkPreview.svelte';
+	import BlackoutTerms from './BlackoutTerms.svelte';
 	import { exportForm } from './export-form.svelte';
 	import { OCR_HINT, OCR_LABEL, OCR_PAGE_CAP, OCR_PAGE_MAX, isDesktop, ocrCapNotice, ocrKeepOpen, ocrSummary, offerReadAll, pagesToRead, readAllHint, readAllLabel, scannedRefs } from './ocr-option';
 	import { ocrCache } from './ocr-cache';
@@ -523,6 +524,8 @@
 			{ pageCount: plan.count, redactions: plan.redactions, hasForm: plan.hasForm, blanks: plan.blanks, scanned, bilevel: bilevelCount }
 		);
 		if (!built.ok) return;
+		// Words marked for blackout from Find: the engine checks the finished file for them.
+		if (store.state.blackout.length) built.options.blackoutTerms = [...store.state.blackout];
 		const options = mkPictures ? pictureExportOptions(built.options) : built.options;
 		// Pages the editor already read in the background are not read again (same reading, same checks after).
 		if (options.ocr) {
@@ -785,7 +788,8 @@
 		watermark: 'Watermark',
 		crop: 'Crop',
 		outline: 'Title and bookmarks',
-		bilevel: 'Black and white pages'
+		bilevel: 'Black and white pages',
+		blackout: 'Blacked-out words'
 	};
 
 	function headline(checks: VerifyCheck[], pageCount: number): string {
@@ -878,6 +882,7 @@
 					</span>
 				</p>
 			{/if}
+			<BlackoutTerms {store} />
 
 			{#if !pictures}
 				<div class="toggles">

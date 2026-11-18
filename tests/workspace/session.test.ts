@@ -260,7 +260,7 @@ describe('sha256Hex', () => {
 });
 
 describe('format', () => {
-	const base = () => {
+	const base = (extra: { blackout?: string[] } = {}) => {
 		const sources = [source('a', 2)];
 		const pages: PageRef[] = [
 			{ id: 'p1', sourceId: 'a', pageIndex: 1, rotation: 270, stamps: everyStamp() },
@@ -280,7 +280,8 @@ describe('format', () => {
 			assets: [asset('sig')],
 			assetBlobs: new Map([['sig', { hash: 'b'.repeat(64), size: 40 }]]),
 			formValues: { a: { t: 'x', c: false, l: ['1', '2'] } },
-			exportForm: { ...DEFAULT_FORM, password: 'hunter2', filename: 'x.pdf' } as unknown as SavedExportForm
+			exportForm: { ...DEFAULT_FORM, password: 'hunter2', filename: 'x.pdf' } as unknown as SavedExportForm,
+			...extra
 		});
 	};
 
@@ -295,6 +296,19 @@ describe('format', () => {
 		// A schema 3 record (no crops) still reads.
 		const v3 = structuredClone({ ...rec, schema: 3, pages: rec.pages.slice(0, 2) });
 		expect(parseRecord(v3).pages).toHaveLength(2);
+	});
+
+	it('keeps the words marked for blackout (schema 5) and reads schema 4 records without them', () => {
+		const rec = base({ blackout: ['Jane Doe', 'Acme'] });
+		expect(rec.blackout).toEqual(['Jane Doe', 'Acme']);
+		expect(parseRecord(structuredClone(rec)).blackout).toEqual(['Jane Doe', 'Acme']);
+		const none = base();
+		expect('blackout' in none).toBe(false);
+		const v4 = structuredClone({ ...none, schema: 4 });
+		expect(parseRecord(v4).blackout).toBeUndefined();
+		for (const bad of [['  '], 'Jane', [1], new Array(51).fill('a')]) {
+			expect(() => parseRecord(structuredClone({ ...rec, blackout: bad }))).toThrow(SessionFormatError);
+		}
 	});
 
 	it('never keeps an export password or file name', () => {

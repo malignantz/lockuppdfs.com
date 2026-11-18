@@ -493,6 +493,7 @@ await (await import('./generate-crop.mjs')).default(write);
 await (await import('./generate-outline.mjs')).default(write);
 await (await import('./generate-bilevel.mjs')).default(write);
 await (await import('./generate-find.mjs')).default(write);
+await (await import('./generate-blackout.mjs')).default(write);
 
 fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, '\t') + '\n');
 const total = fs.readdirSync(outDir).reduce((n, f) => n + fs.statSync(path.join(outDir, f)).size, 0);

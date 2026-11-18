@@ -19,10 +19,12 @@ import { DEFAULT_FORM, FORM_CHOICES, type ExportForm } from '../workspace/logic'
  * 3 (2026-11-13): text, picture and check stamps may carry `turn` (marks turn with a
  * rotated page). Schema 1 and 2 records are the same shape without it (turn 0).
  * 4 (2026-11-14): pages may carry `crop` (Crop). Schemas 1 to 3 are the same shape without it.
+ * 5 (2026-11-18): the record may carry `blackout`, the words marked for blackout from Find
+ * (DocState.blackout). Schemas 1 to 4 are the same shape without it (no words).
  */
-export const SCHEMA = 4;
+export const SCHEMA = 5;
 /** Schemas this build reads: older ones only where they are a subset of SCHEMA. */
-const READS: readonly number[] = [1, 2, 3, SCHEMA];
+const READS: readonly number[] = [1, 2, 3, 4, SCHEMA];
 
 /** A saved session is deleted this long after its last change. */
 export const EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
@@ -79,6 +81,8 @@ export interface SessionRecord {
 	assets: SavedAsset[];
 	formValues: FormValues;
 	exportForm: SavedExportForm;
+	/** Words marked for blackout (DocState.blackout); absent when none. */
+	blackout?: string[];
 }
 
 export interface SessionSummary {
@@ -145,6 +149,7 @@ export interface RecordInput {
 	assetBlobs: ReadonlyMap<string, { hash: string; size: number }>;
 	formValues: FormValues;
 	exportForm: SavedExportForm;
+	blackout?: readonly string[];
 }
 
 /** Build the record to store. Copies only known keys; never a password. */
@@ -179,7 +184,7 @@ export function buildRecord(input: RecordInput): SessionRecord {
 		for (const [k, v] of Object.entries(fields)) f[k] = Array.isArray(v) ? [...v] : v;
 		formValues[id] = f;
 	}
-	return {
+	const rec: SessionRecord = {
 		schema: SCHEMA,
 		writer: input.writer,
 		rev: input.rev,
@@ -196,6 +201,8 @@ export function buildRecord(input: RecordInput): SessionRecord {
 		formValues,
 		exportForm: cleanExportForm(input.exportForm)
 	};
+	if (input.blackout?.length) rec.blackout = [...input.blackout];
+	return rec;
 }
 
 function copyBox(b: StampBox): StampBox {
@@ -431,7 +438,12 @@ export function parseRecord(raw: unknown): SessionRecord {
 	}
 	for (const id of Object.keys(formValues)) if (!byId.has(id)) fail('answers of an unknown source');
 	const exportForm = cleanExportForm(isObj(v.exportForm) ? (v.exportForm as Partial<ExportForm>) : {});
-	return {
+	let blackout: string[] | undefined;
+	if (v.blackout !== undefined) {
+		if (!Array.isArray(v.blackout) || v.blackout.length > 50 || !v.blackout.every((t) => str(t) && t.trim() !== '' && t.length <= 200)) fail('bad blackout words');
+		blackout = [...(v.blackout as string[])];
+	}
+	const rec: SessionRecord = {
 		schema: SCHEMA,
 		writer: v.writer,
 		rev: v.rev as string,
@@ -444,6 +456,8 @@ export function parseRecord(raw: unknown): SessionRecord {
 		formValues,
 		exportForm
 	};
+	if (blackout?.length) rec.blackout = blackout;
+	return rec;
 }
 
 // ---------------------------------------------------------------- summary and time
