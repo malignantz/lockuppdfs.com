@@ -31,6 +31,14 @@
 			]
 		},
 		{
+			title: 'Find',
+			rows: [
+				[[mod, 'F'], 'Find words on every page (your browser’s Find)'],
+				[['Enter'], 'Next match, in the Find bar'],
+				[['Shift', 'Enter'], 'Previous match, in the Find bar']
+			]
+		},
+		{
 			title: 'Files',
 			rows: [
 				[[mod, 'O'], 'Add files'],
