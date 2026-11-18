@@ -367,6 +367,13 @@ export function plainCheck(
 		}
 		case 'bilevel':
 			return c.ok ? 'Black and white pages: passed.' : 'Some black and white pages did not read back exactly.';
+		case 'blackout': {
+			if (!c.ok) return /^Still in the file/.test(c.detail) ? 'Blacked-out words are still in the file.' : 'The blacked-out words could not be checked.';
+			// Pages that are pictures with no text cannot be read: never claimed clean.
+			const m = /Could not be checked: (.+?) (is a picture|are pictures) with no text\./.exec(c.detail);
+			if (!m) return 'Blacked-out words are gone from every page.';
+			return `Blacked-out words are gone from every page with text. ${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]} and could not be checked.`;
+		}
 	}
 }
 

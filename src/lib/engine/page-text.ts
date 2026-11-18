@@ -569,10 +569,38 @@ export function pageTextOf(doc: MU.Document, index: number, opts: LayoutOptions 
 					ch.quad = ch.quad.map((v, k) => v - (k % 2 ? y0 : x0));
 					if (ch.ink) ch.ink = ch.ink.map((v, k) => v - (k % 2 ? y0 : x0));
 				}
-		return layoutWords(raw, x1 - x0, y1 - y0, opts);
+		const text = layoutWords(raw, x1 - x0, y1 - y0, opts);
+		const annots = annotCounts(page);
+		if (annots) text.annots = annots;
+		return text;
 	} finally {
 		destroy(page);
 	}
+}
+
+/**
+ * Annotations on a page (PageText.annots): form field widgets, and every other kind but
+ * links and popups as comments. Their text is never among the page's words. Null: none.
+ */
+export function annotCounts(page: MU.PDFPage): { comments: number; fields: number } | null {
+	let comments = 0;
+	let fields = 0;
+	try {
+		const list = page.getObject().get('Annots');
+		const a = list.isNull() ? null : list.resolve();
+		if (!a || !a.isArray()) return null;
+		for (let i = 0; i < a.length; i++) {
+			const d = a.get(i).resolve();
+			if (!d.isDictionary()) continue;
+			const sub = d.get('Subtype');
+			const kind = sub.isName() ? sub.asName() : '';
+			if (kind === 'Widget') fields++;
+			else if (kind !== 'Link' && kind !== 'Popup') comments++;
+		}
+	} catch {
+		// A damaged annotation list: counted as far as it could be read.
+	}
+	return comments || fields ? { comments, fields } : null;
 }
 
 /** Opened documents by source id, the most recent last; a few are kept. */
