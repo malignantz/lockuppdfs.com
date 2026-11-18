@@ -15,7 +15,7 @@
  * Nothing is read while an export runs or the tab is hidden.
  *
  * Caps: the first PAGE_CAP source pages of the document, and no more once CHAR_CAP
- * characters are held; pages past either have no layer and the Find bar says how many
+ * characters are held (lower on phones); pages past either have no layer and the Find bar says how many
  * pages it searched. Scans without text get words only where the background scan reader
  * (editor/scan-reader.svelte.ts, desktop) has read them.
  */
@@ -27,10 +27,16 @@ import { fullSize, shownSize } from '../doc/crop';
 import { getApp } from '../app';
 import { pageLines, type LayerLine } from './lines';
 
-/** Source pages read for the layer, in document order. */
+/**
+ * Source pages read for the layer, in document order, and characters held across the
+ * document (reading stops past either). Measured 2026-11-18 (Chrome, dense 45-line pages,
+ * about 3,000 characters each): 300 pages read in 17 s, JS heap +40 MB; 1,000 pages in
+ * 55 s, +290 MB, 46,000 line elements. Phones and tablets get a quarter of that.
+ */
 export const PAGE_CAP = 1000;
-/** Characters held across the document; reading stops past this. */
-export const CHAR_CAP = 4_000_000;
+export const CHAR_CAP = 2_000_000;
+export const PAGE_CAP_PHONE = 300;
+export const CHAR_CAP_PHONE = 600_000;
 /** Wait after a document opens before the first page is read (thumbnails first). */
 const START_DELAY_MS = 800;
 /** Pause between two pages. */
@@ -90,8 +96,9 @@ export class DocText {
 		this.#idle = opts.idle ?? defaultIdle;
 		this.#setT = opts.setTimeout ?? ((fn, ms) => setTimeout(fn, ms));
 		this.#clearT = opts.clearTimeout ?? ((t) => clearTimeout(t as ReturnType<typeof setTimeout>));
-		this.#pageCap = opts.pageCap ?? PAGE_CAP;
-		this.#charCap = opts.charCap ?? CHAR_CAP;
+		const desk = this.#eager();
+		this.#pageCap = opts.pageCap ?? (desk ? PAGE_CAP : PAGE_CAP_PHONE);
+		this.#charCap = opts.charCap ?? (desk ? CHAR_CAP : CHAR_CAP_PHONE);
 	}
 
 	/** The open document changed (the workspace calls this on every change of its pages or sources). */

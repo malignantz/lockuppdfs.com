@@ -175,7 +175,8 @@ describe('findStatus', () => {
 		expect(findStatus(base)).toEqual({ count: '12 matches', where: 'on 4 pages', said: '12 matches on 4 pages', note: '' });
 		expect(findStatus({ ...base, current: 2 })).toMatchObject({ count: '3 of 12', said: '3 of 12 matches on 4 pages' });
 		expect(findStatus({ ...base, hits: 1, pages: 1, current: 0 })).toMatchObject({ count: '1 of 1', where: 'on 1 page' });
-		expect(findStatus({ ...base, hits: 5000, truncated: true }).count).toBe('more than 5,000 matches');
+		// Past the cap the page count would only be of the matches listed: left out.
+		expect(findStatus({ ...base, hits: 5000, truncated: true })).toMatchObject({ count: 'more than 5,000 matches', where: '', said: 'more than 5,000 matches' });
 	});
 
 	it('says when nothing matches, and while pages are still read', () => {

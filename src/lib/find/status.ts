@@ -44,8 +44,9 @@ export function findStatus(f: FindFacts): FindWords {
 		const said = f.reading ? 'No matches yet' : 'No matches';
 		return { count: f.reading ? '' : 'No matches', where: '', said, note: join(f.reading ? 'No matches yet.' : '', reading, capped) };
 	}
-	const where = `on ${plural(f.pages, 'page')}`;
+	// Past the cap the pages counted are only those of the matches listed.
+	const where = f.truncated ? '' : `on ${plural(f.pages, 'page')}`;
 	const count = f.current >= 0 ? `${(f.current + 1).toLocaleString('en-US')} of ${n}` : matches;
-	const said = f.current >= 0 ? `${count} matches ${where}` : `${matches} ${where}`;
-	return { count, where, said, note: join(f.reading ? `${matches} ${where} so far.` : '', reading, capped) };
+	const said = join(f.current >= 0 ? `${count} matches` : matches, where);
+	return { count, where, said, note: join(f.reading ? `${join(matches, where)} so far.` : '', reading, capped) };
 }
