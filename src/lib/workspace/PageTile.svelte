@@ -4,6 +4,8 @@
 	import StampLayer from '../editor/StampLayer.svelte';
 	import Icon from '../ui/Icon.svelte';
 	import { shownSize } from '../doc/crop';
+	import TextLayer from '../find/TextLayer.svelte';
+	import { docText, linesOf } from '../find/doc-text.svelte';
 
 	/**
 	 * One page in the grid. Pure presentation: the grid handles every pointer
@@ -28,6 +30,9 @@
 		formValues?: Readonly<Record<string, FormValue>>;
 		/** The page has form fields: show the "Form" chip. */
 		hasFields?: boolean;
+		/** Find: matches on this page (0: none), and whether the current match is here. */
+		findHits?: number;
+		findCurrent?: boolean;
 	}
 
 	let {
@@ -43,8 +48,13 @@
 		lifted,
 		selectionMode,
 		formValues,
-		hasFields = false
+		hasFields = false,
+		findHits = 0,
+		findCurrent = false
 	}: Props = $props();
+
+	/** The page's words as an invisible layer, so the browser's Find finds them (find/TextLayer.svelte). */
+	const lines = $derived(source ? linesOf(docText(), source, page) : []);
 
 	/** The frame is a fixed portrait box; each page is fitted inside it. */
 	const FRAME = 1 / 1.3;
@@ -77,6 +87,8 @@
 	class:lifted
 	class:boundary={boundary && number > 1}
 	class:named
+	class:find-hit={findHits > 0}
+	class:find-current={findCurrent}
 	data-id={page.id}
 	role="option"
 	aria-selected={selected}
@@ -93,6 +105,9 @@
 						<div class="broken">This page could not be shown.</div>
 					{/snippet}
 				</svelte:boundary>
+				{#if lines.length}
+					<TextLayer {lines} {aspect} pageId={page.id} />
+				{/if}
 				{#if page.stamps.length}
 					<div class="stamps">
 						<svelte:boundary>
@@ -103,6 +118,10 @@
 				{/if}
 			{/if}
 		</div>
+
+		{#if findHits > 0}
+			<span class="find-chip num" aria-hidden="true" data-testid="find-chip">{findHits > 99 ? '99+' : findHits}</span>
+		{/if}
 
 		{#if hasFields}
 			<span class="form-chip" aria-hidden="true" title="This page has form fields. Open it to fill them in." data-testid="form-chip">Form</span>
@@ -213,6 +232,43 @@
 
 	.cell:focus-visible {
 		outline: 2px solid var(--accent);
+	}
+
+	/* Find: pages with matches get a ring, the current match's page a stronger one. */
+	.find-hit .page {
+		box-shadow:
+			0 0 0 2px var(--find-ring),
+			var(--shadow-page);
+	}
+
+	.find-current .page {
+		box-shadow:
+			0 0 0 2px var(--surface),
+			0 0 0 5px var(--find-ring),
+			var(--shadow-page);
+	}
+
+	.selected.find-hit .page {
+		box-shadow:
+			0 0 0 2px var(--accent),
+			0 0 0 4px var(--find-ring),
+			var(--shadow-page);
+	}
+
+	.find-chip {
+		position: absolute;
+		left: 4px;
+		bottom: 4px;
+		min-width: 20px;
+		padding: 1px 6px;
+		border-radius: 999px;
+		background: var(--find-ring);
+		color: #1d1a14;
+		font-size: 11px;
+		font-weight: 600;
+		line-height: 16px;
+		text-align: center;
+		pointer-events: none;
 	}
 
 	.lifted .page {

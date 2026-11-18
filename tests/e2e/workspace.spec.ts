@@ -442,11 +442,11 @@ test.describe('phone', () => {
 		await addFiles(page, 'sizes.pdf');
 		await waitForPages(page, 6);
 		const bar = page.getByRole('toolbar', { name: 'Pages' });
-		// Three labelled buttons share one row of the dock.
+		// The labelled buttons share one row of the dock (four, icon over label, when Find is offered: any PDF on a phone).
 		const boxes = await bar.getByRole('button').evaluateAll((els) =>
 			els.map((e) => ({ name: e.textContent?.trim(), ...e.getBoundingClientRect().toJSON(), clipped: e.scrollWidth > e.clientWidth }))
 		);
-		expect(boxes.map((b) => b.name)).toEqual(['Add files', 'Rotate all', 'Select']);
+		expect(boxes.map((b) => b.name)).toEqual(['Add files', 'Rotate all', 'Select', 'Find']);
 		expect(new Set(boxes.map((b) => Math.round(b.top))).size).toBe(1);
 		for (const b of boxes) {
 			expect(b.clipped).toBe(false);

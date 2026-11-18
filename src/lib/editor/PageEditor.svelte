@@ -50,6 +50,10 @@
 	import Progress from '../ui/Progress.svelte';
 	import { boundsOf, copyText, crossSize, selectionRects, selectionText, shownLayout, wordAtEnd, wordNear } from './text-select';
 	import Spinner from '../ui/Spinner.svelte';
+	import TextLayer from '../find/TextLayer.svelte';
+	import FindBar from '../find/FindBar.svelte';
+	import { docText, linesOf, shownAspect } from '../find/doc-text.svelte';
+	import { find } from '../find/find.svelte';
 	import {
 		arrowDelta,
 		boxAround,
@@ -1589,6 +1593,38 @@
 	/** A redaction here hides a field that also shows on another page. */
 	const echo = $derived(page && fields.length ? redactionEcho(pages, index, fields) : null);
 
+	// ------------------------------------------------------------ find (find/)
+	const textReader = docText();
+	/** The page's words as an invisible layer, so the browser's Find finds them; the whole page while cropping. */
+	const findLines = $derived(page && source ? linesOf(textReader, source, page, cropMode) : []);
+	const findAspect = $derived(page && source ? shownAspect(source, page, cropMode) : 1);
+	let findReturn: HTMLElement | null = null;
+
+	function openFind() {
+		if (find.open) {
+			root?.querySelector<HTMLInputElement>('[data-testid="find-bar"] input')?.focus();
+			return;
+		}
+		findReturn = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		find.open = true;
+	}
+
+	function closeFind() {
+		find.open = false;
+		const back = findReturn;
+		findReturn = null;
+		if (back?.isConnected) back.focus();
+		else viewportFocus();
+	}
+
+	/** Show a match: turn to its page, and pan to it when zoomed in. */
+	function revealMatch(id: PageId, box: StampBox | null) {
+		const i = pages.findIndex((p) => p.id === id);
+		if (i < 0) return;
+		if (i !== index) go(i - index);
+		if (box && view.zoom > 1.0001) void tick().then(() => revealField(box));
+	}
+
 	// ------------------------------------------------------------ navigation, history, close
 	function go(delta: number) {
 		const next = pages[index + delta];
@@ -1831,6 +1867,9 @@
 			<IconButton icon="undo" label="Undo" shortcut="Ctrl+Z" tooltip="bottom" disabled={!canUndoHere && !editing && !nudging} onclick={undo} />
 			<IconButton icon="redo" label="Redo" shortcut="Ctrl+Shift+Z" tooltip="bottom" disabled={!canRedoHere} onclick={redo} />
 			<IconButton icon="rotate-right" label="Rotate page" tooltip="bottom" onclick={rotateHere} />
+			{#if textReader.offer}
+				<IconButton icon="search" label="Find in document" tooltip="bottom" pressed={find.open} class="find-top" data-testid="find-open" onclick={openFind} />
+			{/if}
 		</div>
 		<div class="zoom">
 			<IconButton icon="zoom-out" label="Zoom out" shortcut="-" tooltip="bottom" disabled={view.zoom <= 1.0001} onclick={() => zoomBy(0.8)} />
@@ -1926,6 +1965,9 @@
 						formValues={formVals}
 						onrender={(v) => (drawnVals = v)}
 					/>
+					{#if findLines.length}
+						<TextLayer lines={findLines} aspect={findAspect} pageId={page.id} />
+					{/if}
 					{#if fields.length && source.pages[page.pageIndex] && !cropMode}
 						<!-- Fields sit on the whole page; on a cropped page only the visible part shows. -->
 						<div class="whole-clip">
@@ -2081,6 +2123,18 @@
 						This field also appears on page {echo.pageNumber}. Redact it there too if it should be hidden.
 					</p>
 				{/if}
+			</div>
+		{/if}
+
+		{#if textReader.offer && !find.open}
+			<!-- Phones: the header has no room left, so Find floats over the top of the page area. -->
+			<div class="find-float">
+				<IconButton icon="search" label="Find in document" variant="secondary" tooltip="bottom" data-testid="find-open-float" onclick={openFind} />
+			</div>
+		{/if}
+		{#if find.open}
+			<div class="find-dock">
+				<FindBar {pages} sources={doc.state.sources} anchor={Math.max(0, index)} wholePageId={cropMode ? (page?.id ?? null) : null} onreveal={revealMatch} onclose={closeFind} />
 			</div>
 		{/if}
 
@@ -2348,6 +2402,40 @@
 		overflow: hidden;
 		min-width: 0;
 		min-height: 0;
+	}
+
+	.find-dock {
+		position: absolute;
+		z-index: 6;
+		top: var(--s-2);
+		right: var(--s-3);
+		width: min(460px, calc(100% - 2 * var(--s-3)));
+	}
+
+	.find-float {
+		display: none;
+	}
+
+	@media (max-width: 599px) {
+		.find-dock {
+			right: var(--s-2);
+			width: calc(100% - 2 * var(--s-2));
+		}
+
+		.top :global(.find-top) {
+			display: none;
+		}
+
+		.find-float {
+			position: absolute;
+			z-index: 5;
+			top: var(--s-2);
+			right: var(--s-2);
+			display: block;
+			border-radius: var(--radius-control);
+			background: var(--surface);
+			box-shadow: var(--shadow-float);
+		}
 	}
 
 	.viewport {

@@ -3,6 +3,7 @@
 	import { getApp } from '../app';
 	import { formFieldsOf, pagesWithFields } from '../editor/form-fields.svelte';
 	import PageTile from './PageTile.svelte';
+	import { find } from '../find/find.svelte';
 	import { dropSlot, indicatorFor, isNoopMove, sourceBoundaries, type Rect } from './logic';
 
 	/**
@@ -465,6 +466,8 @@
 			{selectionMode}
 			formValues={formValues[page.sourceId]}
 			hasFields={fieldPages.get(page.sourceId)?.has(page.pageIndex) ?? false}
+			findHits={find.pages.get(page.id) ?? 0}
+			findCurrent={find.currentPage === page.id}
 		/>
 	{/each}
 

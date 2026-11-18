@@ -34,6 +34,9 @@
 	import { topbar } from '../ui/topbar.svelte';
 	import { exportForm, startNewJob } from './export-form.svelte';
 	import { scanReader } from '../editor/scan-reader.svelte';
+	import { docText } from '../find/doc-text.svelte';
+	import { find } from '../find/find.svelte';
+	import FindBar from '../find/FindBar.svelte';
 	import { play, snapshot } from './flip';
 	import { createIntake, type PasswordAsk } from './intake.svelte';
 	import { holdBusy } from '../ui/busy';
@@ -188,6 +191,33 @@
 		const { sources, pages } = doc.state;
 		untrack(() => scanReader().sync(sources, pages));
 	});
+
+	// Every page's words, read in the background (a desktop at once, a phone once Find is
+	// opened), for the invisible text layer the browser's Find searches and the Find bar.
+	const textReader = docText();
+	$effect(() => {
+		const { sources, pages } = doc.state;
+		untrack(() => textReader.sync(sources, pages));
+	});
+	/** Find is offered once a page with text is known (on a phone: for any PDF until reading shows none). */
+	const showFind = $derived(inProject && textReader.offer);
+	let findBtn: HTMLElement | null = null;
+
+	function openFind() {
+		if (find.open) {
+			document.querySelector<HTMLInputElement>('[data-testid="find-bar"] input')?.focus();
+			return;
+		}
+		findBtn = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		find.open = true;
+	}
+
+	function closeFind() {
+		find.open = false;
+		const back = findBtn;
+		findBtn = null;
+		if (back?.isConnected) back.focus();
+	}
 
 	// Announce every command, undo and redo in the live region.
 	let lastEvent: unknown = null;
@@ -950,6 +980,9 @@
 		</div>
 		{#if !narrow}
 			<span class="count num" aria-hidden="true">{plural(count, 'page')}</span>
+			{#if showFind}
+				<IconButton icon="search" label="Find in document" tooltip="bottom" pressed={find.open} data-testid="find-open" onclick={openFind} />
+			{/if}
 			<Button variant="secondary" icon="add" onclick={pickFiles}>Add files</Button>
 		{/if}
 		<Menu label="More actions" items={menuItems} />
@@ -972,6 +1005,17 @@
 {/if}
 
 <div class="workspace" inert={!!editorId}>
+	{#if inProject && find.open && !editorId}
+		<div class="find-dock">
+			<FindBar
+				pages={doc.state.pages}
+				sources={doc.state.sources}
+				anchor={Math.max(0, pages.findIndex((p) => p.id === focusedId))}
+				onreveal={(id) => grid?.scrollToPage(id)}
+				onclose={closeFind}
+			/>
+		</div>
+	{/if}
 	{#if inProject}
 		<SaveLine saved={saved.saving} line={saved.line} onopen={() => (saveOpen = true)} onmakeroom={canMakeRoom ? () => (roomOpen = true) : undefined} />
 		<PageGrid
@@ -1053,9 +1097,12 @@
 				<Menu label="More for selected pages" items={selectionMenu} />
 				<Button variant="quiet" onclick={clearSelection}>Done</Button>
 			{:else}
-				<Button variant="quiet" class="dock-btn" icon="add" onclick={pickFiles}>Add files</Button>
-				<Button variant="quiet" class="dock-btn" icon="rotate-right" onclick={() => rotate(90, pages.map((p) => p.id))}>Rotate all</Button>
-				<Button variant="quiet" class="dock-btn" icon="select" onclick={() => (selectionMode = true)}>Select</Button>
+				<Button variant="quiet" class="dock-btn {showFind ? 'stacked' : ''}" icon="add" onclick={pickFiles}>Add files</Button>
+				<Button variant="quiet" class="dock-btn {showFind ? 'stacked' : ''}" icon="rotate-right" onclick={() => rotate(90, pages.map((p) => p.id))}>Rotate all</Button>
+				<Button variant="quiet" class="dock-btn {showFind ? 'stacked' : ''}" icon="select" onclick={() => (selectionMode = true)}>Select</Button>
+				{#if showFind}
+					<Button variant="quiet" class="dock-btn stacked" icon="search" data-testid="find-open" onclick={openFind}>Find</Button>
+				{/if}
 			{/if}
 		</ActionBar>
 	{/if}
@@ -1138,6 +1185,17 @@
 		gap: var(--s-1) !important;
 		padding-right: var(--s-1) !important;
 		padding-left: var(--s-1) !important;
+	}
+
+	/* Four actions (Find offered): equal slots, the icon over its label, as in the editor's tool bar. */
+	:global(.btn.dock-btn.stacked) {
+		flex: 1 1 0;
+		flex-direction: column;
+		gap: 3px !important;
+		min-width: 0;
+		min-height: 52px;
+		font-size: 12px;
+		font-weight: 500;
 	}
 
 	.history {
@@ -1234,6 +1292,22 @@
 		color: var(--surface);
 		font-weight: 550;
 		box-shadow: var(--shadow-float);
+	}
+
+	.find-dock {
+		position: fixed;
+		z-index: 30;
+		top: calc(var(--bar-h) + var(--safe-top) + var(--s-2));
+		right: calc(var(--s-4) + var(--safe-right));
+		width: min(460px, calc(100vw - 2 * var(--s-4)));
+	}
+
+	@media (max-width: 599px) {
+		.find-dock {
+			right: calc(var(--s-2) + var(--safe-right));
+			left: calc(var(--s-2) + var(--safe-left));
+			width: auto;
+		}
 	}
 
 	.editor-layer {

@@ -2811,5 +2811,9 @@
 			"we could come to see the house again with our builder.",
 			"Yours truly, John Smith"
 		]
+	},
+	"find-text.pdf": {
+		"pages": 8,
+		"note": "Find: p1 \"Amount total\" ends a line and \"due next month\" starts the next; \"invoice\" on p2 and p4; p6 \"Total due: 1,250.00\" and \"Café crème brûlée\"; p7 /Rotate 90 \"quarterly report sideways\"; p8 no text"
 	}
 }

@@ -77,6 +77,11 @@
 	--sheet-line: #e7e1d3;
 	/* Words chosen with Select text, over the always-white page (the same in dark mode). */
 	--text-selection: rgb(51 144 255 / 0.35);
+	/* Find matches over the always-white page (the same in dark mode): every match, the current one. */
+	--find-match: rgb(255 196 0 / 0.45);
+	--find-current: rgb(255 128 0 / 0.75);
+	/* A page tile with matches: its ring (on the desk), the current one's. */
+	--find-ring: #d69a00;
 	--shadow-page: 0 1px 2px rgb(0 0 0 / 0.12), 0 4px 14px rgb(0 0 0 / 0.08);
 	--shadow-float: 0 2px 6px rgb(0 0 0 / 0.1), 0 12px 32px rgb(0 0 0 / 0.14);
 }
@@ -369,4 +374,17 @@ a:hover {
 		transition-duration: 0.01ms !important;
 		scroll-behavior: auto !important;
 	}
+}
+
+/* ---------- Find (find/): matches on the invisible text layer ---------- */
+
+/* The Find bar's matches (CSS Custom Highlight API). The layer's text stays invisible. */
+::highlight(find-match) {
+	background-color: var(--find-match);
+	color: transparent;
+}
+
+::highlight(find-current) {
+	background-color: var(--find-current);
+	color: transparent;
 }
