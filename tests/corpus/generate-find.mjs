@@ -11,6 +11,9 @@
  *  p7  /Rotate 90 with "quarterly report sideways"
  *  p8  no text at all
  *
+ * find-none.pdf: two pages of drawn shapes and no text (not a scan either), so Find has
+ * nothing to offer.
+ *
  * Called from generate.mjs (one line), or on its own to (re)write only this file:
  *   node tests/corpus/generate-find.mjs
  * which merges its entry into the existing manifest.json.
@@ -58,7 +61,18 @@ export async function findText() {
 	return doc.save({ useObjectStreams: false });
 }
 
+export async function findNone() {
+	const doc = await PDFDocument.create({ updateMetadata: false });
+	for (let n = 0; n < 2; n++) {
+		const p = doc.addPage([612, 792]);
+		p.drawRectangle({ x: 72, y: 500, width: 300, height: 200, borderWidth: 2 });
+		p.drawCircle({ x: 300, y: 300, size: 80, borderWidth: 2 });
+	}
+	return doc.save({ useObjectStreams: false });
+}
+
 export default async function generateFindCorpus(write) {
+	write('find-none.pdf', await findNone(), { pages: 2, note: 'Find: drawn shapes only, no text, no scan' });
 	write('find-text.pdf', await findText(), {
 		pages: 8,
 		note: 'Find: p1 "Amount total" ends a line and "due next month" starts the next; "invoice" on p2 and p4; p6 "Total due: 1,250.00" and "Café crème brûlée"; p7 /Rotate 90 "quarterly report sideways"; p8 no text'

@@ -152,6 +152,8 @@
 	function paint(hs: readonly DocHit[], cur: number, ids: readonly PageId[]) {
 		const layers = new Map<string, Element[]>();
 		for (const el of document.querySelectorAll('.text-layer[data-find-page]')) {
+			// The grid under the open editor is inert: nothing there is seen.
+			if (el.closest('[inert]')) continue;
 			const id = (el as HTMLElement).dataset.findPage!;
 			const list = layers.get(id);
 			if (list) list.push(el);
