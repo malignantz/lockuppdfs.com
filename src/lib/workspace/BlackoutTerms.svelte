@@ -26,7 +26,7 @@
 		</p>
 		<ul>
 			{#each terms as t (t)}
-				<li class="chip">
+				<li class="term">
 					<span class="word">{t}</span>
 					<button type="button" class="drop" aria-label={`Stop checking for “${t}”`} title={`Stop checking for “${t}”`} onclick={() => store.dropBlackoutTerm(t)}>
 						<Icon name="close" size={16} />
@@ -65,7 +65,7 @@
 		list-style: none;
 	}
 
-	.chip {
+	.term {
 		display: inline-flex;
 		align-items: center;
 		max-width: 100%;
@@ -108,7 +108,7 @@
 	}
 
 	@media (pointer: coarse) {
-		.chip {
+		.term {
 			min-height: 44px;
 			border-radius: 22px;
 		}

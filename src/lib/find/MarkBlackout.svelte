@@ -83,8 +83,8 @@
 		<div class="mark-body" data-testid="mark-confirm">
 			{#if plan.boxes.length}
 				<p>
-					Each “{planTerm}” found gets an ordinary blackout box you can check, move or delete. Nothing is removed until you export,
-					and the export then checks that “{planTerm}” is gone from the whole file.
+					Each match gets a blackout box you can check, move or delete. Nothing is removed until you export, and the export then
+					checks that “{planTerm}” is gone from the whole file.
 				</p>
 			{:else}
 				<p>Every match is already blacked out or hidden by a crop.</p>

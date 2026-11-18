@@ -3,7 +3,7 @@
 // boxes, and the export reads its own finished file: a name wrapped across two lines (which
 // Find cannot see) stops it with a plain sentence; with that page gone it succeeds and the
 // downloaded file no longer holds the name. Corpus: blackout-names.pdf
-// (tests/corpus/generate-blackout.mjs). With BLACKOUT_SHOTS=<dir> it also saves screenshots.
+// (tests/corpus/generate-blackout.mjs). Screenshots: workspace-blackout-shots.spec.ts.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as mupdf from 'mupdf';
@@ -12,17 +12,10 @@ import { test, expect } from './fixtures';
 
 const corpus = (name: string) => fileURLToPath(new URL(`../corpus/files/${name}`, import.meta.url));
 const isPhone = (info: TestInfo) => info.project.name === 'phone';
-const shots = process.env.BLACKOUT_SHOTS;
 
 const findButton = (page: Page) => page.locator('[data-testid^="find-open"]:visible').first();
 const bar = (page: Page) => page.getByTestId('find-bar');
 const count = (page: Page) => bar(page).getByTestId('find-count');
-
-async function shot(page: Page, info: TestInfo, name: string) {
-	if (!shots) return;
-	await page.waitForTimeout(300);
-	await page.screenshot({ path: `${shots}/${name}-${info.project.name}.png` });
-}
 
 /** Every page's text in a PDF, read with MuPDF (lines joined by spaces). */
 function textOf(bytes: Uint8Array): string[] {
@@ -56,14 +49,12 @@ test('mark a name for blackout from Find; a wrapped occurrence stops the export;
 	await expect(bar(page).getByTestId('find-note')).toHaveCount(0, { timeout: 30_000 });
 	const markBtn = bar(page).getByRole('button', { name: 'Mark 4 for blackout' });
 	await expect(markBtn).toBeVisible();
-	await shot(page, info, 'find-bar');
 
 	// Never instant: a confirm first, with what search could not see.
 	await markBtn.click();
 	const confirm = page.getByRole('dialog', { name: 'Add 4 blackout boxes on 3 pages?' });
 	await expect(confirm).toBeVisible();
 	await expect(confirm.getByText('A phrase broken across two lines or hyphenated, and words inside pictures.')).toBeVisible();
-	await shot(page, info, 'confirm');
 	await confirm.getByRole('button', { name: 'Cancel' }).click();
 	await expect(confirm).toBeHidden();
 	await markBtn.click();
@@ -79,7 +70,6 @@ test('mark a name for blackout from Find; a wrapped occurrence stops the export;
 	const terms = dialog.getByTestId('blackout-terms');
 	await expect(terms.getByText('jane doe', { exact: true })).toBeVisible();
 	await expect(terms.getByRole('button', { name: 'Stop checking for “jane doe”' })).toBeVisible();
-	await shot(page, info, 'export-terms');
 
 	// Page 3 wraps the name across two lines: refused, nothing offered.
 	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
@@ -89,8 +79,7 @@ test('mark a name for blackout from Find; a wrapped occurrence stops the export;
 	).toBeVisible({ timeout: 90_000 });
 	await expect(stopped.getByText('Blacked-out words are still in the file.')).toBeVisible();
 	await expect(stopped.getByRole('button', { name: 'Download' })).toHaveCount(0);
-	await shot(page, info, 'refused');
-	await stopped.getByRole('button', { name: 'Close' }).click();
+	await stopped.getByRole('button', { name: 'Close', exact: true }).last().click();
 
 	// Without page 3 the export goes through and says the words are gone.
 	if (isPhone(info)) {
@@ -107,7 +96,6 @@ test('mark a name for blackout from Find; a wrapped occurrence stops the export;
 	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 	const done = page.getByRole('dialog', { name: 'Your file is ready' });
 	await expect(done.getByText('Blacked-out words are gone from every page.')).toBeVisible({ timeout: 90_000 });
-	await shot(page, info, 'passed');
 	const [download] = await Promise.all([page.waitForEvent('download'), done.getByRole('button', { name: 'Download' }).click()]);
 	const bytes = new Uint8Array(readFileSync((await download.path())!));
 	const texts = textOf(bytes);
