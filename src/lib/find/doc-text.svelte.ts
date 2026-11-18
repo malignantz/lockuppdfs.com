@@ -35,6 +35,8 @@ export const CHAR_CAP = 4_000_000;
 const START_DELAY_MS = 800;
 /** Pause between two pages. */
 const GAP_MS = 25;
+/** Reading stops after this many failures in a row (offline before MuPDF was ever fetched, say) until the document changes. */
+const MAX_FAILS = 3;
 
 export interface DocTextOptions {
 	engine: Pick<Engine, 'pageText'>;
@@ -76,6 +78,7 @@ export class DocText {
 	#withWords = $state(0);
 	#enabled = $state(false);
 	#holds = new Set<string>();
+	#failsInARow = 0;
 	#running = false;
 	#timer: unknown = null;
 	/** Bumped on every sync: a read from an older document is still kept, but does not chain. */
@@ -94,6 +97,7 @@ export class DocText {
 	/** The open document changed (the workspace calls this on every change of its pages or sources). */
 	sync(sources: readonly Source[], pages: readonly PageRef[]): void {
 		this.#gen++;
+		this.#failsInARow = 0;
 		this.#sources = new Map(sources.map((s) => [s.id, s]));
 		unpinExcept(new Set(this.#sources.keys()));
 		// Unique source pages in document order, a file's pages together (MuPDF keeps two files open).
@@ -235,7 +239,7 @@ export class DocText {
 	}
 
 	#pump() {
-		if (this.#running || !this.#enabled || this.#holds.size || this.#charCapped) return;
+		if (this.#running || !this.#enabled || this.#holds.size || this.#charCapped || this.#failsInARow >= MAX_FAILS) return;
 		const key = this.#next();
 		if (!key) {
 			this.#recount();
@@ -251,12 +255,14 @@ export class DocText {
 			readPinned(this.#engine, source, pageIndex)
 				.then(
 					(t) => {
+						this.#failsInARow = 0;
 						for (const w of t.words) this.#chars += w.text.length + 1;
 						if (this.#chars > this.#charCap) this.#charCapped = true;
 					},
 					(e) => {
 						console.warn('Could not read the page text for Find', e);
 						this.#failed.add(key);
+						this.#failsInARow++;
 					}
 				)
 				.finally(() => {

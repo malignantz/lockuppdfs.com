@@ -154,6 +154,18 @@ describe('DocText', () => {
 		expect(calls).toEqual([`${a.id}:0`, `${a.id}:1`]);
 		expect(dt.complete).toBe(true);
 	});
+
+	it('stops after three failures in a row (offline before MuPDF was fetched) until the document changes', async () => {
+		const { dt, calls, settle } = harness({ text: () => 'FAIL' });
+		const a = src(6);
+		dt.sync([a], refs(a));
+		await settle();
+		expect(calls).toHaveLength(3);
+		expect(dt.offer).toBe(false);
+		dt.sync([a], refs(a));
+		await settle();
+		expect(calls).toHaveLength(6);
+	});
 });
 
 describe('findStatus', () => {
