@@ -82,6 +82,10 @@
 				kept already, the app says the open work is not being saved and lets you choose what to forget.
 			</li>
 			<li>
+				<strong>Words you mark for blackout from Find</strong> are kept with that piece of work, so every export can
+				check they are gone, and are deleted with it.
+			</li>
+			<li>
 				<strong>Passwords are never kept.</strong> A file you opened with a password is kept as you gave it, still
 				locked, and asks for the password again.
 			</li>
