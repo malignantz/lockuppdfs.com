@@ -155,7 +155,7 @@ export class DocText {
 
 	/** Every page that will be read has been (reactive). */
 	get complete(): boolean {
-		return this.#enabled && this.#done >= this.#order.length;
+		return this.#enabled && (this.#done >= this.#order.length || this.#charCapped);
 	}
 
 	/** Pages of the document not read because of the caps (reactive). */

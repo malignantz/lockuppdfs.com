@@ -130,6 +130,7 @@ describe('DocText', () => {
 		// "page 0 " is 7 characters: the second page passes 10.
 		expect(calls).toEqual([`${a.id}:0`, `${a.id}:1`]);
 		expect(dt.skipped).toBe(3);
+		expect(dt.complete).toBe(true);
 	});
 
 	it('waits while held (an export, a hidden tab) and goes on after', async () => {
