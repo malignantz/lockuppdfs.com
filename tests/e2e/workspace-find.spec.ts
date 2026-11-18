@@ -120,7 +120,7 @@ test('the Find bar counts matches, steps through them and closes with Escape', a
 	await expect(count(page)).toHaveText(/^1 of 2/);
 
 	// The matches are painted with the Custom Highlight API over the layer's text.
-	const painted = await page.evaluate(() => ({ all: CSS.highlights.get('find-match')?.size, current: CSS.highlights.get('find-current')?.size, text: [...(CSS.highlights.get('find-current') as Set<Range>)][0]?.toString() }));
+	const painted = await page.evaluate(() => ({ all: CSS.highlights.get('find-match')?.size, current: CSS.highlights.get('find-current')?.size, text: [...(CSS.highlights.get('find-current') as unknown as Set<Range>)][0]?.toString() }));
 	expect(painted).toEqual({ all: 1, current: 1, text: 'total' });
 
 	// Accents and case do not matter; a phrase within a line matches, across lines it does not.
@@ -150,7 +150,7 @@ test('in the editor the Find bar moves from page to page, and the page has its l
 	const indicator = page.locator('.editor .indicator');
 	await expect(indicator).toHaveText(/^2\s*of\s*8$/);
 	await expect(page.getByTestId('editor-page').locator('.text-layer .ln', { hasText: 'See invoice number 102 for details.' })).toHaveCount(1);
-	await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get('find-current') as Set<Range>)].map((r) => r.toString()))).toEqual(['invoice']);
+	await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get('find-current') as unknown as Set<Range>)].map((r) => r.toString()))).toEqual(['invoice']);
 	await field(page).press('Enter');
 	await expect(indicator).toHaveText(/^4\s*of\s*8$/);
 	await field(page).press('Enter');
