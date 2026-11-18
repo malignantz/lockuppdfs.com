@@ -133,6 +133,38 @@ describe('exportSplit', () => {
 		).toEqual(['File 2 is still over 10 MB: that is the smallest they can get without damaging text.', '2 oversized pictures brought down to 300 dpi.']);
 	});
 
+	it('reads scanned pages across the parts within one budget, and sums up as for one file', async () => {
+		// Each part has 12 scanned pages: 20 in all are read (12, then 8, then none), or all 36 with "Read all".
+		const run = async (ocrPages?: number) => {
+			const asked: (number | undefined)[] = [];
+			const out = await exportSplit({
+				exportPlan: async (plan) => {
+					const cap = plan.options.ocrPages!;
+					asked.push(cap);
+					const tried = Math.min(12, cap);
+					return result(plan.pages.length, {
+						ocr: { eligible: 12, cap, searchable: Array.from({ length: Math.max(0, tried - 1) }, (_, i) => i + 1), declined: tried ? [12] : [] }
+					});
+				},
+				plans: plans.map((p) => ({ ...p, options: { ...p.options, ocr: true, ocrPages } })),
+				parts,
+				sources: [],
+				assets: [],
+				base: 'r'
+			});
+			return { asked, notes: splitNotes(out) };
+		};
+		const first = await run();
+		expect(first.asked).toEqual([20, 8, 0]);
+		expect(first.notes).toEqual([
+			'18 pages made searchable. 2 pages were left as they were because the text could not be read well enough.',
+			'This file has 36 scanned pages. Only the first 20 were read.'
+		]);
+		const all = await run(500);
+		expect(all.asked).toEqual([500, 488, 476]);
+		expect(all.notes).toEqual(['33 pages made searchable. 3 pages were left as they were because the text could not be read well enough.']);
+	});
+
 	it('says once why accessibility tags were not kept, naming the files when not all', () => {
 		const part = (tags: ExportResult['tags']) => ({ name: 'a', pages: '', bytes: 1, result: result(1, tags ? { tags } : {}) });
 		const why = 'Accessibility tags (used by screen readers) were not kept because a page is used more than once.';

@@ -6,8 +6,10 @@
 import type { Engine, ExportProgress, OcrReport, PageRef, Source, SourceId } from '../core/types';
 import { plural } from './logic';
 
-/** Most pages one export reads (the engine's OCR_CAP; checked by a test). */
+/** Most pages one export reads unless "Read all" is on (the engine's OCR_CAP; checked by a test). */
 export const OCR_PAGE_CAP = 20;
+/** Most pages one export reads with "Read all" on (the engine's OCR_MAX; checked by a test). */
+export const OCR_PAGE_MAX = 500;
 
 export const OCR_LABEL = 'Make scanned pages searchable';
 export const OCR_HINT = 'Reads typed English on scanned pages so you can search and copy the text. The pages look the same.';
@@ -45,9 +47,69 @@ export async function countScanned(engine: Pick<Engine, 'scannedPages'>, pages: 
 	return pages.filter((p) => !p.stamps.some((s) => s.kind === 'redact') && sets.get(p.sourceId)?.has(p.pageIndex)).length;
 }
 
-/** Said before export when there are more scanned pages than one export reads. */
-export function ocrCapNotice(scanned: number): string | null {
-	return scanned > OCR_PAGE_CAP ? `This file has ${scanned} scanned pages. The first ${OCR_PAGE_CAP} will be made searchable.` : null;
+/** The pages an export reads (ExportOptions.ocrPages): the first 20, or with "Read all" up to the ceiling. */
+export function ocrPageLimit(all: boolean): number {
+	return all ? OCR_PAGE_MAX : OCR_PAGE_CAP;
+}
+
+/** Said before export when there are more scanned pages than this export reads. */
+export function ocrCapNotice(scanned: number, all = false): string | null {
+	const cap = ocrPageLimit(all);
+	return scanned > cap ? `This file has ${scanned} scanned pages. The first ${cap} will be made searchable.` : null;
+}
+
+/** "Read all 34 pages" is offered when there are more scanned pages than the first 20. */
+export function offerReadAll(scanned: number): boolean {
+	return scanned > OCR_PAGE_CAP;
+}
+
+/** Its label: "Read all 34 pages", or past the ceiling "Read the first 500 pages". */
+export function readAllLabel(scanned: number): string {
+	return scanned > OCR_PAGE_MAX ? `Read the first ${OCR_PAGE_MAX} pages` : `Read all ${scanned} pages`;
+}
+
+/**
+ * Readers the engine runs at once for `cores` (navigator.hardwareConcurrency), as the
+ * engine's ocr/stage.ts readerSlots (not imported: the dialog stays engine-free; checked by a test).
+ */
+export function ocrSlots(cores: number): number {
+	return cores >= 4 ? 2 : 1;
+}
+
+/**
+ * Seconds of one page in one reader (render, orientation, reading; 2026-11-18, the Node
+ * run of 100 Letter scans: 7.3 s median, Chrome 5.7 s) and of the rest of the export per
+ * page (the layer, its checks, the final check: 0.5 s). Two readers made the 100-page
+ * export 4.1 s a page in Node, and the 20-page Chrome export 4.1 s a page.
+ */
+const READ_S = 7;
+const REST_S = 0.6;
+
+/** About how long reading `pages` scanned pages takes, in seconds. */
+export function ocrSeconds(pages: number, cores: number): number {
+	return pages * (READ_S / ocrSlots(cores) + REST_S);
+}
+
+/** "about 3 minutes" (coarse: whole minutes, fives past 10 minutes, then quarter hours past an hour). */
+export function aboutTime(seconds: number): string {
+	if (seconds < 45) return 'less than a minute';
+	const min = seconds / 60;
+	if (min < 1.5) return 'about a minute';
+	if (min < 10) return `about ${Math.round(min)} minutes`;
+	if (min < 60) return `about ${Math.round(min / 5) * 5} minutes`;
+	const q = Math.round(min / 15) / 4;
+	return q === 1 ? 'about an hour' : `about ${q} hours`;
+}
+
+/** The hint under "Read all": its time, honestly, and that the tab has to stay open. */
+export function readAllHint(scanned: number, cores: number): string {
+	const t = aboutTime(ocrSeconds(Math.min(scanned, OCR_PAGE_MAX), cores));
+	return `Takes ${t}. Keep this tab open while it reads.`;
+}
+
+/** "Keep this tab open" while a long reading runs (more pages than the first 20). */
+export function ocrKeepOpen(p: ExportProgress | null): boolean {
+	return !!p && p.stage === 'ocr' && p.total > OCR_PAGE_CAP && p.done < p.total;
 }
 
 export function ocrProgressText(p: ExportProgress | null): string | null {

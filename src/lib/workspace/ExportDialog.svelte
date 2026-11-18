@@ -15,7 +15,7 @@
 	import OptionPicker from './OptionPicker.svelte';
 	import WatermarkPreview from './WatermarkPreview.svelte';
 	import { exportForm } from './export-form.svelte';
-	import { OCR_HINT, OCR_LABEL, countScanned, isDesktop, ocrCapNotice, ocrSummary } from './ocr-option';
+	import { OCR_HINT, OCR_LABEL, OCR_PAGE_CAP, countScanned, isDesktop, ocrCapNotice, ocrKeepOpen, ocrSummary, offerReadAll, readAllHint, readAllLabel } from './ocr-option';
 	import { scanReader } from '../editor/scan-reader.svelte';
 	import { BILEVEL_HINT, BILEVEL_LABEL, bilevelCandidates, bilevelSummary, firstPreview, type PreviewImages } from './bilevel-option';
 	import { PRINT_CAP_LABEL, countOversized, printCapHint, printCapLine } from './print-cap-option';
@@ -159,6 +159,8 @@
 	// dialog opens; an open dialog shows its form only once they are known (or after
 	// FORM_WAIT), so no row appears between controls the person is already reaching for.
 	const desktop = isDesktop();
+	// For the "Read all" time estimate: readers run as the engine picks them (ocr/stage.ts readerSlots).
+	const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 2 : 2;
 	const FORM_WAIT = 2000;
 	let scanned = $state(0);
 	// "Make scanned pages black and white": only when a page could qualify (phones too).
@@ -526,6 +528,8 @@
 		};
 		// The background reading of scans waits while the export runs.
 		scanReader().hold('export', true);
+		// A long reading ("Read all"): keep the screen awake while it runs (no network; ignored where unsupported).
+		const awake = options.ocr && (options.ocrPages ?? 0) > OCR_PAGE_CAP ? stayAwake() : null;
 		try {
 			const s = store.state;
 			const sources = [...s.sources];
@@ -650,6 +654,16 @@
 			step = null;
 			timeLeft = null;
 			scanReader().hold('export', false);
+			void awake?.then((lock) => lock?.release()).catch(() => undefined);
+		}
+	}
+
+	/** A screen wake lock, or null where the browser has none or refuses. */
+	async function stayAwake(): Promise<WakeLockSentinel | null> {
+		try {
+			return (await navigator.wakeLock?.request('screen')) ?? null;
+		} catch {
+			return null;
 		}
 	}
 
@@ -1038,7 +1052,10 @@
 							/>
 							{#if scanned > 0}
 								<Toggle bind:checked={f.ocr} label={OCR_LABEL} hint={OCR_HINT} />
-								{#if f.ocr && ocrCapNotice(scanned)}<p class="caption ocr-note">{ocrCapNotice(scanned)}</p>{/if}
+								{#if f.ocr && ocrCapNotice(scanned, f.ocrAll && offerReadAll(scanned))}<p class="caption ocr-note">{ocrCapNotice(scanned, f.ocrAll && offerReadAll(scanned))}</p>{/if}
+								{#if f.ocr && offerReadAll(scanned)}
+									<div class="ocr-all"><Toggle bind:checked={f.ocrAll} label={readAllLabel(scanned)} hint={readAllHint(scanned, cores)} /></div>
+								{/if}
 							{/if}
 							{#if bilevelCount > 0}
 								<Toggle bind:checked={f.bilevel} label={BILEVEL_LABEL} hint={BILEVEL_HINT} />
@@ -1086,6 +1103,7 @@
 			{#if phase.fitting && stepText}<p class="step">{stepText}</p>{/if}
 			{#if innerText}<p class="step">{innerText}</p>{/if}
 			{#if leftText}<p class="left num">{leftText}</p>{/if}
+			{#if ocrKeepOpen(progress) || ocrKeepOpen(step)}<p class="caption">Keep this tab open until it finishes.</p>{/if}
 			<p class="caption">Every export is re-opened and checked before you can save it.</p>
 		</div>
 	{:else if phase.kind === 'done'}
@@ -1360,6 +1378,10 @@
 
 	.ocr-note {
 		color: var(--ink-soft);
+		padding-left: var(--s-2);
+	}
+
+	.ocr-all {
 		padding-left: var(--s-2);
 	}
 

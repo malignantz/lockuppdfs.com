@@ -302,6 +302,12 @@ export interface ExportOptions {
 	 */
 	ocrKnown?: OcrKnownPage[];
 	/**
+	 * Added 2026-11-18. With `ocr`: most scanned pages to try, in document order (a whole
+	 * number; 0 tries none). Absent or invalid: 20. The engine never tries more than its
+	 * ceiling (500) whatever is asked; OcrReport.cap says the number used.
+	 */
+	ocrPages?: number;
+	/**
 	 * Print-size cap (2026-11-13), only with `compress`: photos and scans that hold more
 	 * pixels than a 300 ppi print of the size they are drawn at are brought down to
 	 * 300 ppi (JPEG). Flat-colour images, masks, 1-bit, CMYK and anything the engine
@@ -490,7 +496,7 @@ export type TagsDropReason = 'redacted' | 'flattened' | 'merged' | 'repeated' | 
 export interface OcrReport {
 	/** Eligible pages in the export. */
 	eligible: number;
-	/** Most pages one export tries. */
+	/** Most pages this export tries: ExportOptions.ocrPages within the engine's ceiling (500), or 20. */
 	cap: number;
 	/** 1-based output page numbers that got a text layer. */
 	searchable: number[];

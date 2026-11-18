@@ -8,6 +8,7 @@ import type { BookmarksDropReason, ExportOptions, ExportResult, PageId, PageNumb
 import { numberingLabels } from '../engine/numbering';
 import type { OutputKind, PictureQuality } from './pictures-plan';
 import type { SplitRule } from './split-plan';
+import { ocrPageLimit } from './ocr-option';
 
 // ---------------------------------------------------------------- drop slots
 
@@ -471,6 +472,9 @@ export interface ExportForm {
 	// Added 2026-11-14 (black and white scans). Never saved with the work (session/format.ts).
 	/** Make scanned pages black and white (ExportOptions.bilevel; offered when a page could qualify). */
 	bilevel: boolean;
+	// Added 2026-11-18. Old saved sessions read off.
+	/** With `ocr`: read every scanned page (up to the engine's ceiling), not only the first 20 (ExportOptions.ocrPages). */
+	ocrAll: boolean;
 }
 
 export type WatermarkPick = 'DRAFT' | 'CONFIDENTIAL' | 'COPY' | 'other';
@@ -546,7 +550,8 @@ export const DEFAULT_FORM: Omit<ExportForm, 'filename'> = {
 	wmLook: 'diagonal',
 	wmStrength: 'light',
 	wmColor: 'grey',
-	bilevel: false
+	bilevel: false,
+	ocrAll: false
 };
 
 /** Filled blanks on the pages of a plan: text and ticks still linked to the blank they were snapped into. */
@@ -723,7 +728,11 @@ export function buildExportOptions(
 	}
 	if ((ctx.hasForm && f.lockForms) || redacting) options.flattenForms = true;
 	if (f.keepBlanks && (ctx.blanks ?? 0) > 0 && !options.flattenForms) options.blankFields = true;
-	if (f.ocr && (ctx.scanned ?? 0) > 0) options.ocr = true;
+	if (f.ocr && (ctx.scanned ?? 0) > 0) {
+		options.ocr = true;
+		// The engine reads the first 20 unless asked for more.
+		if (f.ocrAll) options.ocrPages = ocrPageLimit(true);
+	}
 	if (f.bilevel && (ctx.bilevel ?? 0) > 0) options.bilevel = true;
 	// Sent whether or not the dialog has counted oversized pictures yet: the engine decides.
 	if (options.compress && f.printCap) options.printCap = true;

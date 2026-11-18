@@ -1,8 +1,8 @@
 /**
  * The export stage of "Make scanned pages searchable" (ExportOptions.ocr).
  *
- *   readScans   which output pages to try (eligible.ts, at most OCR_CAP in document
- *               order), then per page: render at 300 dpi (MuPDF, grey) → orientation
+ *   readScans   which output pages to try (eligible.ts, the first `ocrLimit` in document
+ *               order: ExportOptions.ocrPages, or OCR_CAP, never over OCR_MAX), then per page: render at 300 dpi (MuPDF, grey) → orientation
  *               and script (OSD; only upright Latin pages go on) → OCR (tess.ts) →
  *               the page gate (gate.ts) → drop words under confidence 50. Runs in
  *               OCR workers (`OcrBackend.slots` readers and one orientation worker);
@@ -32,8 +32,30 @@ import { WORD_MIN_CONF, gateAccepts, norm, signals, type Signals } from './gate'
 import { writeLayers, type LayerPage, type WrittenWord } from './layer';
 import type { OcrRead, Orientation } from './tess';
 
-/** Most pages one export tries. */
+/** Most pages one export tries unless it asks for more (ExportOptions.ocrPages). */
 export const OCR_CAP = 20;
+/**
+ * The ceiling, whatever an export asks. Set from the long-run measurement (2026-11-18,
+ * tools/ocr/wired/long.ts): time per page and memory stay flat over the run, so the
+ * ceiling bounds the wait (500 pages at 2 readers is about 25 minutes on a 4-core desktop),
+ * not memory.
+ */
+export const OCR_MAX = 500;
+
+/**
+ * Readers working at once for `cores` (navigator.hardwareConcurrency): two on a desktop
+ * (the measurement: twice the throughput for +150 MB), one on a small machine. The
+ * dialog's time estimate counts the same (workspace/ocr-option.ts; checked by a test).
+ */
+export function readerSlots(cores: number): number {
+	return cores >= 4 ? 2 : 1;
+}
+
+/** The pages an export tries: `asked` (ExportOptions.ocrPages) as a whole number within 0..OCR_MAX, or OCR_CAP. */
+export function ocrLimit(asked: unknown): number {
+	if (typeof asked !== 'number' || !Number.isFinite(asked) || asked < 0) return OCR_CAP;
+	return Math.min(OCR_MAX, Math.floor(asked));
+}
 /** A reader is replaced after this many pages. */
 export const REPLACE_AFTER = 10;
 
@@ -78,8 +100,10 @@ export interface ScanJob {
 export interface ScanReading {
 	/** Eligible output pages (0-based), in document order. */
 	eligible: number[];
-	/** Output pages tried (the first OCR_CAP eligible ones). */
+	/** Output pages tried (the first `cap` eligible ones). */
 	tried: number[];
+	/** Most pages this export tries (ocrLimit). */
+	cap: number;
 	/** Outcome per job key (`sourceId:pageIndex`). */
 	outcomes: Map<string, PageOutcome>;
 }
@@ -116,6 +140,8 @@ export async function eligiblePages(deps: EngineDeps, pages: PageRef[], byId: Ma
 
 export interface ReadOptions {
 	backend: () => Promise<OcrBackend>;
+	/** Most pages to try (ocrLimit of ExportOptions.ocrPages). Default OCR_CAP. */
+	limit?: number;
 	/**
 	 * Outcomes already read for some pages (by `sourceId:pageIndex`), by the editor's
 	 * background reader (Engine.readScanPage: the same render, workers, settings and gate),
@@ -133,7 +159,8 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 	const { control } = opts;
 	throwIfCancelled(control);
 	const eligible = await eligiblePages(deps, pages, byId);
-	const tried = eligible.slice(0, OCR_CAP);
+	const cap = opts.limit ?? OCR_CAP;
+	const tried = eligible.slice(0, cap);
 	const jobs = new Map<string, ScanJob>();
 	for (const i of tried) {
 		const ref = pages[i];
@@ -150,7 +177,7 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 			opts.debug?.(`ocr: page ${key} read before (in the editor); not read again`);
 		}
 	}
-	if (!jobs.size) return { eligible, tried, outcomes };
+	if (!jobs.size) return { eligible, tried, cap, outcomes };
 
 	throwIfCancelled(control);
 	control?.onProgress?.({ stage: 'ocr-load' });
@@ -313,7 +340,7 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 		for (const d of docs.values()) d.destroy();
 		m.emptyStore();
 	}
-	return { eligible, tried, outcomes };
+	return { eligible, tried, cap, outcomes };
 }
 
 /**
@@ -415,7 +442,7 @@ export async function addLayers(
 		written,
 		report: {
 			eligible: reading.eligible.length,
-			cap: OCR_CAP,
+			cap: reading.cap,
 			searchable: searchable.map((i) => i + 1),
 			declined: reading.tried.filter((i) => !set.has(i)).map((i) => i + 1)
 		}

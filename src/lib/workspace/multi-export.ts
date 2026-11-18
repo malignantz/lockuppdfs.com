@@ -8,15 +8,18 @@
  *   stamps, numbers and rotation are what the PDF shows.
  * - Split: one ordinary export per part, one after the other, each with the user's
  *   options. If any part fails, nothing is delivered and the error says which part.
+ *   "Make scanned pages searchable" reads at most ExportOptions.ocrPages pages across
+ *   all the parts (the first 20, as for one file): each part is given what is left.
  *
  * Progress goes through ExportProgress ('picture', 'part'); the engine's own progress
  * inside a part is passed on separately (`onStep`).
  */
 
-import type { Asset, BilevelReport, EngineErrorShape, ExportControl, ExportPlan, ExportProgress, ExportResult, PageId, VerifyCheck, Source } from '../core/types';
+import type { Asset, BilevelReport, EngineErrorShape, OcrReport, ExportControl, ExportPlan, ExportProgress, ExportResult, PageId, VerifyCheck, Source } from '../core/types';
 import { isEngineErrorShape } from '../engine/errors';
 import { outlineLines, plural, tagsLine } from './logic';
 import { bilevelSummary } from './bilevel-option';
+import { OCR_PAGE_CAP, ocrSummary } from './ocr-option';
 import { JPEG_QUALITY, mimeOf, pictureName, ranOutMessage } from './pictures-plan';
 import { partName, partPages, type Part } from './split-plan';
 import { crc32, ZipWriter } from './zip';
@@ -119,12 +122,19 @@ export async function exportSplit(args: {
 	const { signal, plans } = args;
 	const total = plans.length;
 	const done: SplitOutput['parts'] = [];
+	/** Scanned pages the parts may still read (ExportOptions.ocrPages across the whole split). */
+	let ocrLeft: number | null = null;
 	for (let i = 0; i < total; i++) {
 		if (signal?.aborted) throw cancelled();
 		args.onProgress?.({ stage: 'part', done: i, total });
 		let result: ExportResult;
+		let plan = plans[i];
+		if (plan.options.ocr) {
+			ocrLeft ??= plan.options.ocrPages ?? OCR_PAGE_CAP;
+			plan = { ...plan, options: { ...plan.options, ocrPages: ocrLeft } };
+		}
 		try {
-			result = await args.exportPlan(plans[i], args.sources, args.assets, { signal, onProgress: args.onStep });
+			result = await args.exportPlan(plan, args.sources, args.assets, { signal, onProgress: args.onStep });
 		} catch (e) {
 			if (signal?.aborted || (isEngineErrorShape(e) && e.code === 'cancelled')) throw cancelled();
 			const err: EngineErrorShape = isEngineErrorShape(e) ? e : { code: 'internal', message: 'Something went wrong while building the file.' };
@@ -134,6 +144,7 @@ export async function exportSplit(args: {
 			} satisfies EngineErrorShape;
 		}
 		done.push({ name: partName(args.base, i, total), pages: partPages(args.parts[i]), bytes: result.bytes.length, result });
+		if (result.ocr && ocrLeft !== null) ocrLeft = Math.max(0, ocrLeft - result.ocr.searchable.length - result.ocr.declined.length);
 	}
 	if (signal?.aborted) throw cancelled();
 	args.onProgress?.({ stage: 'part', done: total, total });
@@ -199,8 +210,18 @@ export function splitNotes(out: Pick<SplitOutput, 'parts'>): string[] {
 	}
 	const capped = out.parts.reduce((n, p) => n + (p.result.printCap?.images ?? 0), 0);
 	if (capped) notes.push(`${plural(capped, 'oversized picture')} brought down to 300 dpi.`);
-	const ocr = out.parts.reduce((n, p) => n + (p.result.ocr?.searchable.length ?? 0), 0);
-	if (out.parts.some((p) => p.result.ocr)) notes.push(`${plural(ocr, 'scanned page')} made searchable.`);
+	// Searchable text: the parts' reports added up, worded as for one file.
+	const oc = out.parts.filter((p) => p.result.ocr);
+	if (oc.length) {
+		// The first part was given the whole budget: its cap is the split's.
+		const sum: OcrReport = { eligible: 0, cap: oc[0].result.ocr!.cap, searchable: [], declined: [] };
+		for (const p of oc) {
+			sum.eligible += p.result.ocr!.eligible;
+			sum.searchable.push(...p.result.ocr!.searchable);
+			sum.declined.push(...p.result.ocr!.declined);
+		}
+		notes.push(...ocrSummary(sum));
+	}
 	// Black and white scans: the parts' reports added up, worded as for one file.
 	const bl = out.parts.filter((p) => p.result.bilevel);
 	if (bl.length) {

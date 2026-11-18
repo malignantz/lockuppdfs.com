@@ -12,7 +12,7 @@ import { EngineError } from '../../src/lib/engine/errors';
 import { mupdf } from '../../src/lib/engine/mupdf';
 import { pageTextOf } from '../../src/lib/engine/page-text';
 import { renderAndCompare } from '../../src/lib/engine/shrink';
-import { OCR_CAP, REPLACE_AFTER, verifyTextLayer, type OcrBackend, type OcrReader } from '../../src/lib/engine/ocr/stage';
+import { OCR_CAP, OCR_MAX, REPLACE_AFTER, ocrLimit, verifyTextLayer, type OcrBackend, type OcrReader } from '../../src/lib/engine/ocr/stage';
 import type { OcrWord } from '../../src/lib/engine/ocr/gate';
 import type { OcrRead, Orientation } from '../../src/lib/engine/ocr/tess';
 import type { ExportProgress, PageRef, Source } from '../../src/lib/core/types';
@@ -157,6 +157,48 @@ describe('OCR stage', () => {
 		// The same source page is read once.
 		expect(f.reads).toBe(1);
 		expect(await words(res.bytes, 20)).toEqual([]);
+	});
+
+	it('reads more than 20 pages when the export asks (ExportOptions.ocrPages), within the ceiling', { timeout: 120_000 }, async () => {
+		const f = fake({ slots: 2 });
+		const eng = createCoreEngine({ ...nodeAssets(), ocr: f.backend });
+		const pages: PageRef[] = [];
+		const sources: Source[] = [];
+		for (let k = 0; k < 13; k++) {
+			const s = await eng.openPdf(corpus('ocr-scans.pdf'), `copy-${k}.pdf`);
+			sources.push(s);
+			pages.push(ref(s, 0), ref(s, 7));
+		}
+		const progress: ExportProgress[] = [];
+		const res = await eng.exportPlan({ pages, options: { ...opts(), ocrPages: OCR_MAX } }, sources, [], { onProgress: (p) => progress.push(p) });
+		expect(res.ocr).toEqual({ eligible: 26, cap: OCR_MAX, searchable: Array.from({ length: 26 }, (_, i) => i + 1), declined: [] });
+		expect(f.reads).toBe(26);
+		expect(f.readers).toBeGreaterThanOrEqual(Math.ceil(26 / REPLACE_AFTER));
+		expect(f.alive.size).toBe(0);
+		expect(progress.filter((p) => p.stage === 'ocr').at(-1)).toEqual({ stage: 'ocr', done: 26, total: 26 });
+		expect(res.checks.find((c) => c.name === 'text-layer')).toMatchObject({ ok: true });
+		expect((await words(res.bytes, 25)).length).toBe(meta.words.length);
+
+		// A smaller number is a smaller cap; 0 reads nothing.
+		const g = fake();
+		const e2 = createCoreEngine({ ...nodeAssets(), ocr: g.backend });
+		const s2 = await e2.openPdf(corpus('ocr-scans.pdf'), 'ocr-scans.pdf');
+		const few = await e2.exportPlan({ pages: [ref(s2, 0), ref(s2, 7)], options: { ...opts(), ocrPages: 1 } }, [s2], [], {});
+		expect(few.ocr).toEqual({ eligible: 2, cap: 1, searchable: [1], declined: [] });
+		const none = await e2.exportPlan({ pages: [ref(s2, 0), ref(s2, 7)], options: { ...opts(), ocrPages: 0 } }, [s2], [], {});
+		expect(none.ocr).toEqual({ eligible: 2, cap: 0, searchable: [], declined: [] });
+		expect(g.reads).toBe(1);
+	});
+
+	it('keeps the page count within its ceiling whatever is asked', () => {
+		expect(ocrLimit(undefined)).toBe(OCR_CAP);
+		expect(ocrLimit(OCR_MAX * 10)).toBe(OCR_MAX);
+		expect(ocrLimit(Infinity)).toBe(OCR_CAP);
+		expect(ocrLimit(Number.NaN)).toBe(OCR_CAP);
+		expect(ocrLimit(-1)).toBe(OCR_CAP);
+		expect(ocrLimit('600')).toBe(OCR_CAP);
+		expect(ocrLimit(34.7)).toBe(34);
+		expect(ocrLimit(0)).toBe(0);
 	});
 
 	it('does not read pages with redaction boxes, and reads nothing when no page qualifies', async () => {

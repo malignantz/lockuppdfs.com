@@ -66,7 +66,7 @@ import { dumpStreams, isSigned, nativeDeflate, packStreams, type Deflater } from
 import { TextDocs, pageTextOf } from './page-text';
 import { NEED_BYTES } from './protocol';
 import { checkScanPage, imageCandidates, scannedPagesOf } from './ocr/eligible';
-import { addLayers, keyOf, readScans, throwIfCancelled, verifyTextLayer, type OcrBackend, type OcrTrace, type PageOutcome, type ScanReading } from './ocr/stage';
+import { addLayers, keyOf, ocrLimit, readScans, throwIfCancelled, verifyTextLayer, type OcrBackend, type OcrTrace, type PageOutcome, type ScanReading } from './ocr/stage';
 import { ScanPageReader } from './ocr/single';
 import type { WrittenWord } from './ocr/layer';
 import { graftTags, planTags, verifyTags, type GraftResult, type TagsPlan } from './tags';
@@ -602,7 +602,7 @@ export function createCoreEngine(assets: EngineAssets, options: EngineOptions = 
 			const known = new Map<string, PageOutcome>();
 			for (const k of Array.isArray(options.ocrKnown) ? options.ocrKnown : [])
 				if (k && typeof k.sourceId === 'string' && Number.isInteger(k.pageIndex)) known.set(keyOf(k.sourceId, k.pageIndex), k.outcome as PageOutcome);
-			reading = await readScans(deps, pages, byId, { backend: assets.ocr, control, trace: ocrTrace, debug, known });
+			reading = await readScans(deps, pages, byId, { backend: assets.ocr, limit: ocrLimit(options.ocrPages), control, trace: ocrTrace, debug, known });
 		}
 		throwIfCancelled(control);
 

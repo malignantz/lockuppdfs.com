@@ -27,7 +27,7 @@ import legacyPlain from 'tesseract.js-core/tesseract-core.wasm.js?url';
 import engUrl from '../vendor/tesseract/eng.traineddata.gz?url';
 import osdUrl from '../vendor/tesseract/osd.traineddata.gz?url';
 import { gunzipSync } from 'fflate';
-import type { OcrBackend } from './stage';
+import { readerSlots, type OcrBackend } from './stage';
 import { Orienter, Reader, type TessPort } from './tess';
 
 // wasm-feature-detect's probes (Apache-2.0), as tesseract.js itself uses them.
@@ -77,8 +77,7 @@ export async function browserOcr(): Promise<OcrBackend> {
 	const [eng, osd] = await Promise.all([data(engUrl), data(osdUrl)]);
 	const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 2 : 2;
 	return {
-		// Two readers on a desktop (the measurement: twice the throughput for +150 MB), one on a small machine.
-		slots: cores >= 4 ? 2 : 1,
+		slots: readerSlots(cores),
 		reader: () => Reader.start(spawn(), lstm, eng),
 		orienter: () => Orienter.start(spawn(), legacy, osd)
 	};
