@@ -5,7 +5,7 @@
  * Corpus: tests/corpus/generate-ocr.mjs (p1 and p8 readable scans, p2 sideways, p3
  * made-up words, p4–p7 not scans or too coarse).
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as mupdf from 'mupdf';
 import type { Locator, Page } from '@playwright/test';
@@ -169,4 +169,61 @@ test('desktop: after one use the OCR engine works offline', async ({ page, conte
 	done = page.getByRole('dialog', { name: 'Your file is ready' });
 	await expect(done.getByText('2 pages made searchable.', { exact: false })).toBeVisible({ timeout: 150_000 });
 	await context.setOffline(false);
+});
+
+/** `n` scanned pages: copies of the readable letters (p1 and p8 of ocr-scans.pdf), written to `file`. */
+function longScan(file: string, n: number): string {
+	const src = new mupdf.PDFDocument(readFileSync(corpus('ocr-scans.pdf')));
+	const out = new mupdf.PDFDocument();
+	try {
+		for (let i = 0; i < n; i++) out.graftPage(-1, src, i % 2 ? 7 : 0);
+		writeFileSync(file, out.saveToBuffer('compress').asUint8Array());
+		return file;
+	} finally {
+		out.destroy();
+		src.destroy();
+	}
+}
+
+test('desktop: more than 20 scanned pages: the first 20, or all of them with "Read all"; cancel stops a long reading', async ({ page }, info) => {
+	test.skip(info.project.name !== 'desktop-chrome', 'desktop only');
+	test.setTimeout(300_000);
+	const file = longScan(info.outputPath('long-scan.pdf'), 24);
+	await page.goto('/');
+	await page.locator('input[type=file]').first().setInputFiles([file]);
+	await expect(page.getByRole('option')).toHaveCount(24, { timeout: 30_000 });
+	await page.getByRole('button', { name: 'Export', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Export PDF' });
+	await openMore(dialog);
+	const option = dialog.getByRole('switch', { name: OPTION });
+	await expect(option).toBeVisible({ timeout: 30_000 });
+	const all = dialog.getByRole('switch', { name: 'Read all 24 pages' });
+	await expect(all).toHaveCount(0);
+	await option.click();
+	await expect(dialog.getByText('This file has 24 scanned pages. The first 20 will be made searchable.')).toBeVisible();
+	await expect(all).not.toBeChecked();
+	await expect(dialog.getByText(/^Takes (less than a minute|about (a minute|\d+ minutes))\. Keep this tab open while it reads\.$/)).toBeVisible();
+	await all.click();
+	await expect(dialog.getByText(/The first 20 will be made searchable/)).toHaveCount(0);
+
+	// Cancel during the reading: back to the form quickly, nothing made, the choice kept.
+	await exportButton(dialog).click();
+	await expect(page.getByText(/^Reading page \d+ of \d+$/)).toBeVisible({ timeout: 60_000 });
+	await expect(page.getByText('Keep this tab open until it finishes.')).toBeVisible();
+	const t = Date.now();
+	await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+	const form = page.getByRole('dialog', { name: 'Export PDF' });
+	await expect(form.getByText('Export cancelled. Nothing was saved.')).toBeVisible({ timeout: 15_000 });
+	expect(Date.now() - t).toBeLessThan(5_000);
+	await expect(form.getByRole('switch', { name: 'Read all 24 pages' })).toBeChecked();
+
+	// All of them.
+	await exportButton(form).click();
+	const done = page.getByRole('dialog', { name: 'Your file is ready' });
+	await expect(done.getByText('Checked: 24 pages, opens cleanly.')).toBeVisible({ timeout: 240_000 });
+	await expect(done.getByText('24 pages made searchable.', { exact: true })).toBeVisible();
+	await expect(done.getByText(/Only the first/)).toHaveCount(0);
+	const [download] = await Promise.all([page.waitForEvent('download'), done.getByRole('button', { name: 'Download' }).click()]);
+	const texts = await pageTexts(new Uint8Array(readFileSync((await download.path())!)));
+	expect(texts.filter((s) => s.includes('Dear') && s.includes('Smith')).length).toBe(24);
 });

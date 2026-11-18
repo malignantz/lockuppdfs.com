@@ -56,6 +56,25 @@ export function ocrLimit(asked: unknown): number {
 	if (typeof asked !== 'number' || !Number.isFinite(asked) || asked < 0) return OCR_CAP;
 	return Math.min(OCR_MAX, Math.floor(asked));
 }
+/**
+ * The OCR pipeline's version, stamped on every reading the engine gives out
+ * (OcrKnownPage.version) and checked on every reading it is given back. Bump it whenever
+ * anything that changes a page's outcome changes: tesseract.js or its core, the model
+ * (tessdata), OCR_DPI or the render, the orientation and script check, Tesseract's
+ * settings (tess.ts), the gate or WORD_MIN_CONF (gate.ts), the outcome's shape. Readings
+ * kept on the device under another version are then never used (workspace/ocr-cache.ts
+ * keys by it too).
+ */
+export const OCR_PIPELINE_VERSION = 1;
+
+/** A kept reading of the current pipeline, or null (wrong version, wrong shape, or a failed read). */
+export function reusable(k: unknown): PageOutcome | null {
+	const r = k as { outcome?: unknown; version?: unknown } | null;
+	if (!r || typeof r !== 'object' || r.version !== OCR_PIPELINE_VERSION || !isOutcome(r.outcome)) return null;
+	const o = r.outcome;
+	return o.ok || o.why !== 'failed' ? o : null;
+}
+
 /** A reader is replaced after this many pages. */
 export const REPLACE_AFTER = 10;
 
@@ -106,6 +125,8 @@ export interface ScanReading {
 	cap: number;
 	/** Outcome per job key (`sourceId:pageIndex`). */
 	outcomes: Map<string, PageOutcome>;
+	/** Keys this export read itself (not given as known). */
+	read: string[];
 }
 
 /** Thrown in a slot that stops because another one failed. */
@@ -168,16 +189,18 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 		if (!jobs.has(key)) jobs.set(key, { key, source: byId.get(ref.sourceId)!, pageIndex: ref.pageIndex });
 	}
 	const outcomes = new Map<string, PageOutcome>();
+	let reused = 0;
 	for (const [key] of [...jobs]) {
 		const k = opts.known?.get(key);
 		// A page whose reader failed (a worker trap or time-out) is read again here.
 		if (k && isOutcome(k) && (k.ok || k.why !== 'failed')) {
+			reused++;
 			outcomes.set(key, k);
 			jobs.delete(key);
 			opts.debug?.(`ocr: page ${key} read before (in the editor); not read again`);
 		}
 	}
-	if (!jobs.size) return { eligible, tried, cap, outcomes };
+	if (!jobs.size) return { eligible, tried, cap, outcomes, read: [...jobs.keys()] };
 
 	throwIfCancelled(control);
 	control?.onProgress?.({ stage: 'ocr-load' });
@@ -244,7 +267,7 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 	const queue = [...jobs.values()];
 	let done = 0;
 	const total = jobs.size;
-	control?.onProgress?.({ stage: 'ocr', done, total });
+	control?.onProgress?.({ stage: 'ocr', done, total, reused });
 
 	const render = (job: ScanJob): { png: Uint8Array; w: number; h: number } => {
 		let doc = docs.get(job.source.id);
@@ -315,7 +338,7 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 			opts.debug?.(`ocr: page ${job.pageIndex + 1} ${outcome.ok ? 'accepted' : `declined (${outcome.why})`}; render ${Math.round(ms.render)} ms, orientation ${Math.round(ms.orient)} ms, reading ${Math.round(ms.read)} ms`);
 			done++;
 			check();
-			control?.onProgress?.({ stage: 'ocr', done, total });
+			control?.onProgress?.({ stage: 'ocr', done, total, reused });
 		}
 		drop(reader);
 	};
@@ -340,7 +363,7 @@ export async function readScans(deps: EngineDeps, pages: PageRef[], byId: Map<st
 		for (const d of docs.values()) d.destroy();
 		m.emptyStore();
 	}
-	return { eligible, tried, cap, outcomes };
+	return { eligible, tried, cap, outcomes, read: [...jobs.keys()] };
 }
 
 /**

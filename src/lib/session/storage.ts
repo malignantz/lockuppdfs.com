@@ -6,8 +6,13 @@
  *  - `blobs`:    `{ hash, size, blob, at }`, one per source file and asset, keyed by the
  *    SHA-256 of the bytes, so a file is written once and shared by every project that uses it;
  *  - `session`:  version 1's single record (key "current"), read once to move it into
- *    `projects` (takeLegacy) and otherwise left empty.
- * Opening version 2 closes any tab still running the version 1 build (its `onversionchange`),
+ *    `projects` (takeLegacy) and otherwise left empty;
+ *  - `ocr` (version 3, 2026-11-18): text read from scanned pages (the OCR cache,
+ *    workspace/ocr-cache.ts), `{ hash, pageIndex, version, outcome, at }` keyed by
+ *    [blob hash, page, OCR pipeline version]: written only for a file that is stored,
+ *    deleted with it (sweep, deleteBlobs, clear), at most OCR_MAX_ROWS rows (the oldest
+ *    go first). Upgrading from version 2 only adds this store; nothing else changes.
+ * Opening a newer version closes any tab still running an older build (its `onversionchange`),
  * so an old tab can never sweep blobs that only the new projects use.
  * Nothing here touches the network. `memoryStorage` is the same contract in memory
  * for unit tests.
@@ -51,17 +56,37 @@ export interface SessionStorage {
 	 * `mine` (files the calling tab wrote itself and no longer uses).
 	 */
 	sweep(keep: ReadonlySet<string>, hashesOf: (raw: unknown) => string[], writtenBefore: number, mine?: ReadonlySet<string>): Promise<number>;
-	/** Delete every record, thumbnail and blob. */
+	/** Delete every record, thumbnail and blob (and the text read from scans). */
 	clear(): Promise<void>;
+	/** Text read from scanned pages of stored file `hash`, by the OCR pipeline `version`. */
+	getOcr(hash: string, version: number): Promise<OcrRow[]>;
+	/**
+	 * Keep readings of stored file `hash` (rows of other pipeline versions of that file go).
+	 * Written only if the file itself is stored: false (nothing written) otherwise.
+	 */
+	putOcr(hash: string, version: number, rows: readonly OcrRow[], at: number): Promise<boolean>;
 }
 
+/** One page's reading as kept: the engine's opaque outcome (OcrKnownPage.outcome). */
+export interface OcrRow {
+	pageIndex: number;
+	outcome: unknown;
+}
+
+/** Most pages of text read from scans kept on the device (a dense page is about 20 KB). */
+export const OCR_MAX_ROWS = 5000;
+
 const DB = 'pdf-workspace-session';
-const VERSION = 2;
+const VERSION = 3;
 const LEGACY = 'session';
 const LEGACY_KEY = 'current';
 const PROJECTS = 'projects';
 const THUMBS = 'thumbs';
 const BLOBS = 'blobs';
+const OCR = 'ocr';
+
+/** Every OCR row of blob `hash` ([hash] sorts before [hash, page, version], [hash, []] after). */
+const ocrRange = (hash: string) => IDBKeyRange.bound([hash], [hash, []]);
 
 function isQuota(e: unknown): boolean {
 	const name = (e as { name?: string } | null)?.name;
@@ -99,6 +124,7 @@ export function openIdbStorage(): Promise<SessionStorage> {
 			if (!db.objectStoreNames.contains(BLOBS)) db.createObjectStore(BLOBS, { keyPath: 'hash' });
 			if (!db.objectStoreNames.contains(PROJECTS)) db.createObjectStore(PROJECTS);
 			if (!db.objectStoreNames.contains(THUMBS)) db.createObjectStore(THUMBS);
+			if (!db.objectStoreNames.contains(OCR)) db.createObjectStore(OCR, { keyPath: ['hash', 'pageIndex', 'version'] }).createIndex('at', 'at');
 		};
 		r.onsuccess = () => resolve(r.result);
 		r.onerror = () => reject(r.error ?? new Error('IndexedDB did not open'));
@@ -207,13 +233,16 @@ function idb(db: IDBDatabase): SessionStorage {
 		},
 		async deleteBlobs(hashes) {
 			if (!hashes.length) return;
-			const t = tx(BLOBS, 'readwrite');
+			const t = tx([BLOBS, OCR], 'readwrite');
 			const s = t.objectStore(BLOBS);
-			for (const h of hashes) s.delete(h);
+			for (const h of hashes) {
+				s.delete(h);
+				t.objectStore(OCR).delete(ocrRange(h));
+			}
 			await done(t);
 		},
 		async sweep(keep, hashesOf, writtenBefore, mine) {
-			const t = tx([PROJECTS, LEGACY, BLOBS], 'readwrite');
+			const t = tx([PROJECTS, LEGACY, BLOBS, OCR], 'readwrite');
 			const finished = done(t);
 			const live = new Set(keep);
 			for (const raw of await req(t.objectStore(PROJECTS).getAll())) for (const h of hashesOf(raw)) live.add(h);
@@ -229,6 +258,8 @@ function idb(db: IDBDatabase): SessionStorage {
 					const row = cur.value as { hash: string; at?: number };
 					if (!live.has(row.hash) && ((row.at ?? 0) < writtenBefore || mine?.has(row.hash))) {
 						cur.delete();
+						// The text read from its scanned pages goes with it.
+						t.objectStore(OCR).delete(ocrRange(row.hash));
 						n++;
 					}
 					cur.continue();
@@ -238,9 +269,44 @@ function idb(db: IDBDatabase): SessionStorage {
 			return n;
 		},
 		async clear() {
-			const t = tx([LEGACY, PROJECTS, THUMBS, BLOBS], 'readwrite');
-			for (const s of [LEGACY, PROJECTS, THUMBS, BLOBS]) t.objectStore(s).clear();
+			const t = tx([LEGACY, PROJECTS, THUMBS, BLOBS, OCR], 'readwrite');
+			for (const s of [LEGACY, PROJECTS, THUMBS, BLOBS, OCR]) t.objectStore(s).clear();
 			await done(t);
+		},
+		async getOcr(hash, version) {
+			const rows = (await req(tx(OCR, 'readonly').objectStore(OCR).getAll(ocrRange(hash)))) as (OcrRow & { version: number })[];
+			return rows.filter((r) => r.version === version).map((r) => ({ pageIndex: r.pageIndex, outcome: r.outcome }));
+		},
+		async putOcr(hash, version, rows, at) {
+			const t = tx([BLOBS, OCR], 'readwrite');
+			const finished = done(t);
+			try {
+				if ((await req(t.objectStore(BLOBS).count(hash))) === 0) {
+					t.abort();
+					await finished.catch(() => undefined);
+					return false;
+				}
+				const ocr = t.objectStore(OCR);
+				// Rows of this file read by another pipeline version are of no use any more.
+				for (const k of (await req(ocr.getAllKeys(ocrRange(hash)))) as [string, number, number][]) if (k[2] !== version) ocr.delete(k);
+				for (const r of rows) ocr.put({ hash, pageIndex: r.pageIndex, version, outcome: r.outcome, at });
+				const over = (await req(ocr.count())) - OCR_MAX_ROWS;
+				if (over > 0) {
+					// The oldest go first.
+					const keys = await req(ocr.index('at').getAllKeys(null, over));
+					for (const k of keys) ocr.delete(k);
+				}
+			} catch (e) {
+				try {
+					t.abort();
+				} catch {
+					// Already finished.
+				}
+				await finished.catch(() => undefined);
+				throw isQuota(e) ? new StorageFullError() : e;
+			}
+			await finished;
+			return true;
 		}
 	};
 }
@@ -252,9 +318,15 @@ export function memoryStorage(opts: { quotaBytes?: number } = {}) {
 	const thumbs = new Map<string, Blob>();
 	const blobs = new Map<string, Uint8Array>();
 	const written = new Map<string, number>();
+	/** OCR rows by `${hash}\n${pageIndex}\n${version}`. */
+	const ocr = new Map<string, { hash: string; pageIndex: number; version: number; outcome: unknown; at: number }>();
+	const dropOcr = (hash: string) => {
+		for (const [k, r] of [...ocr]) if (r.hash === hash) ocr.delete(k);
+	};
 	const used = () => [...blobs.values()].reduce((n, b) => n + b.length, 0);
 	const store: SessionStorage & {
 		blobs: Map<string, Uint8Array>;
+		ocr: typeof ocr;
 		records: Map<string, unknown>;
 		thumbs: Map<string, Blob>;
 		quotaBytes: number | undefined;
@@ -265,6 +337,7 @@ export function memoryStorage(opts: { quotaBytes?: number } = {}) {
 		legacy: () => unknown;
 	} = {
 		blobs,
+		ocr,
 		records,
 		thumbs,
 		quotaBytes: opts.quotaBytes,
@@ -317,7 +390,10 @@ export function memoryStorage(opts: { quotaBytes?: number } = {}) {
 			return blobs.get(hash)?.slice() ?? null;
 		},
 		async deleteBlobs(hashes) {
-			for (const h of hashes) blobs.delete(h);
+			for (const h of hashes) {
+				blobs.delete(h);
+				dropOcr(h);
+			}
 		},
 		async sweep(keep, hashesOf, writtenBefore, mine) {
 			const live = new Set(keep);
@@ -327,6 +403,7 @@ export function memoryStorage(opts: { quotaBytes?: number } = {}) {
 			for (const h of [...blobs.keys()]) {
 				if (!live.has(h) && ((written.get(h) ?? 0) < writtenBefore || mine?.has(h))) {
 					blobs.delete(h);
+					dropOcr(h);
 					n++;
 				}
 			}
@@ -337,6 +414,18 @@ export function memoryStorage(opts: { quotaBytes?: number } = {}) {
 			records.clear();
 			thumbs.clear();
 			blobs.clear();
+			ocr.clear();
+		},
+		async getOcr(hash, version) {
+			return [...ocr.values()].filter((r) => r.hash === hash && r.version === version).map((r) => ({ pageIndex: r.pageIndex, outcome: structuredClone(r.outcome) }));
+		},
+		async putOcr(hash, version, rows, at) {
+			if (!blobs.has(hash)) return false;
+			for (const [k, r] of [...ocr]) if (r.hash === hash && r.version !== version) ocr.delete(k);
+			for (const r of rows) ocr.set(`${hash}\n${r.pageIndex}\n${version}`, { hash, pageIndex: r.pageIndex, version, outcome: structuredClone(r.outcome), at });
+			const over = ocr.size - OCR_MAX_ROWS;
+			if (over > 0) for (const [k] of [...ocr].sort((a, b) => a[1].at - b[1].at).slice(0, over)) ocr.delete(k);
+			return true;
 		}
 	};
 	return store;

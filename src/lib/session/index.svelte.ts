@@ -12,6 +12,7 @@ import { heldElsewhere, lockProject } from './owner';
 import { makeThumbnail } from './thumbnail';
 import { createSession, type Session } from './session';
 import { openIdbStorage } from './storage';
+import { ocrCache } from '../workspace/ocr-cache';
 
 const KEEP_KEY = 'pdf-workspace.keep-work';
 const CHANNEL = 'pdf-workspace-session-news';
@@ -73,6 +74,8 @@ export function getSession(): Session {
 		}
 	});
 	app.onSourceReleased((id) => s.sourceReleased(id));
+	// Text read from scanned pages is kept with saved work (and deleted with it).
+	ocrCache().useStore(() => s.ocrStore());
 	session = s;
 	return s;
 }

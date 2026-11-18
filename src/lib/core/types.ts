@@ -429,6 +429,12 @@ export interface ExportResult {
 	/** Present when ExportOptions.ocr was set. */
 	ocr?: OcrReport;
 	/**
+	 * Added 2026-11-18. With ExportOptions.ocr: the pages this export read itself (not
+	 * those given in ocrKnown), as readings to keep for reuse (the OCR cache). Readings
+	 * whose reader failed are not included (they are read again next time).
+	 */
+	ocrRead?: OcrKnownPage[];
+	/**
 	 * Present when ExportOptions.printCap was on (with compress). `images`: pictures
 	 * brought down to `ppi` (0 when none needed it or none could be changed safely).
 	 * `ppi`: the cap (print-cap.ts CAP_PPI). `savedBytes`: what that saved. With targetBytes it is exact (finalized size without
@@ -508,8 +514,11 @@ export interface OcrReport {
 export type ExportProgress =
 	/** Loading the OCR engine (the first time: a download of a few megabytes). */
 	| { stage: 'ocr-load' }
-	/** `done` of `total` pages read so far. */
-	| { stage: 'ocr'; done: number; total: number }
+	/**
+	 * `done` of `total` pages read so far. Added 2026-11-18: `reused`, pages not read
+	 * because a reading of them was given (ExportOptions.ocrKnown); not in `total`.
+	 */
+	| { stage: 'ocr'; done: number; total: number; reused?: number }
 	/** Print-size cap: `done` of `total` oversized pictures handled so far ("Reducing picture 3 of 20"). */
 	| { stage: 'pictures'; done: number; total: number }
 	// Added 2026-11-13 (remaining-time estimate). Each stage starts again at done 0; a stage
@@ -586,6 +595,14 @@ export interface OcrKnownPage {
 	sourceId: SourceId;
 	pageIndex: number;
 	outcome: unknown;
+	/**
+	 * Added 2026-11-18. The OCR pipeline that read it (the engine's OCR_PIPELINE_VERSION:
+	 * OCR engine and model, render resolution, orientation check, gate, word filter). The
+	 * engine stamps every reading it gives out and ignores one of another version, so a
+	 * reading kept on the device (the OCR cache) is never reused after the pipeline changed.
+	 * Absent on a reading not worth keeping (the reader failed: it is read again next time).
+	 */
+	version?: number;
 }
 
 export interface Engine {
@@ -619,8 +636,11 @@ export interface Engine {
 	 * (render, orientation and script check, OCR, gate, word filter), one page at a time.
 	 * Loads the OCR engine on first use. Never throws for a page it cannot read: the words
 	 * are then empty. Pages it was not given in `scannedPages` are not read (empty words).
+	 * Added 2026-11-18: `reuse`, a reading of this very page kept from before (the OCR
+	 * cache, of the same pipeline version): used instead of reading, only the words are
+	 * laid out (ScanPageRead.ms is then 0). An invalid or stale one is ignored.
 	 */
-	readScanPage(source: Source, pageIndex: number): Promise<ScanPageRead>;
+	readScanPage(source: Source, pageIndex: number, reuse?: OcrKnownPage): Promise<ScanPageRead>;
 	/**
 	 * Pictures the print-size cap (ExportOptions.printCap) would bring down: one entry
 	 * per picture, the 0-based pages of `source` it is drawn on. [] for blank sources,

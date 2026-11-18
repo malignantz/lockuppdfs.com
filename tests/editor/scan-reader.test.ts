@@ -5,7 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import { ScanReader, DONE_FIRST_NOTICE, DONE_NOTICE } from '../../src/lib/editor/scan-reader.svelte';
 import type { EngineClient } from '../../src/lib/engine/client';
-import type { PageRef, ScanPageRead, Source } from '../../src/lib/core/types';
+import type { OcrKnownPage, PageRef, ScanPageRead, Source } from '../../src/lib/core/types';
+import { OCR_READ_VERSION, OcrCache } from '../../src/lib/workspace/ocr-cache';
 
 const cfg = { autoAll: 4, autoFirst: 2, ahead: 1, maxDocPages: 50, maxFileBytes: 1000, keep: 50 };
 
@@ -16,11 +17,12 @@ const refs = (s: Source, idx = s.pages.map((_, i) => i)): PageRef[] => idx.map((
 
 interface Call {
 	key: string;
+	reuse?: OcrKnownPage;
 	resolve: (r: ScanPageRead) => void;
 	reject: (e: unknown) => void;
 }
 
-function harness(eligible: Record<string, number[]>) {
+function harness(eligible: Record<string, number[]>, cache = new OcrCache({ hash: async (b) => `bytes-${b.length}` })) {
 	const timers: { fn: () => void; at: number }[] = [];
 	let clock = 0;
 	const calls: Call[] = [];
@@ -31,10 +33,10 @@ function harness(eligible: Record<string, number[]>) {
 		engines.push(me);
 		return {
 			scannedPages: async (s: Source) => eligible[s.id] ?? [],
-			readScanPage: (s: Source, i: number) =>
+			readScanPage: (s: Source, i: number, reuse?: OcrKnownPage) =>
 				new Promise<ScanPageRead>((resolve, reject) => {
 					if (me.terminated) return reject(new Error('stopped'));
-					calls.push({ key: `${s.id}:${i}`, resolve, reject });
+					calls.push({ key: `${s.id}:${i}`, reuse, resolve, reject });
 				}),
 			terminate: () => {
 				me.terminated = true;
@@ -44,6 +46,7 @@ function harness(eligible: Record<string, number[]>) {
 	};
 	const reader = new ScanReader({
 		createEngine: make,
+		cache,
 		enabled: () => true,
 		config: cfg,
 		notify: (m) => notes.push(m),
@@ -69,19 +72,19 @@ function harness(eligible: Record<string, number[]>) {
 			for (const t of due) t.fn();
 		}
 	};
-	const answer = async (words: number, ms = 6000) => {
+	const answer = async (words: number, ms = 6000, version?: number) => {
 		const c = calls.shift()!;
 		clock += ms;
 		c.resolve({
 			text: { words: Array.from({ length: words }, (_, i) => ({ text: `w${i}`, box: { x: 0, y: 0, w: 0.1, h: 0.1 }, line: 0 })), skipped: 0 },
-			reuse: { sourceId: c.key.split(':')[0], pageIndex: Number(c.key.split(':')[1]), outcome: { ok: words > 0 } },
+			reuse: { sourceId: c.key.split(':')[0], pageIndex: Number(c.key.split(':')[1]), outcome: { ok: words > 0 }, ...(version ? { version } : {}) },
 			ms
 		});
 		await advance();
 		await advance(400);
 		return c.key;
 	};
-	return { reader, calls, engines, notes, advance, answer };
+	return { reader, calls, engines, notes, advance, answer, cache };
 }
 
 describe('ScanReader', () => {
@@ -225,6 +228,26 @@ describe('ScanReader', () => {
 		expect(h.calls).toEqual([]);
 		expect(h.engines.length).toBe(0);
 		expect(h.reader.page('huge', 0).state).toBe('none');
+	});
+
+	it('passes a kept reading to the engine, keeps what it reads, and wants every page read before (the OCR cache)', async () => {
+		const cache = new OcrCache({ hash: async (b) => `bytes-${b.length}` });
+		const big = src('big', 12, 7);
+		// Pages 9 and 11 were read before (by an export, or in an earlier visit).
+		await cache.add(big, [9, 11].map((pageIndex) => ({ sourceId: 'big', pageIndex, outcome: { ok: true }, version: OCR_READ_VERSION })));
+		const h = harness({ big: Array.from({ length: 12 }, (_, i) => i) }, cache);
+		h.reader.sync([big], refs(big));
+		await h.advance();
+		// The first two (autoFirst), then the kept ones beyond the window.
+		expect(h.calls[0].key).toBe('big:0');
+		expect(h.calls[0].reuse).toBeUndefined();
+		await h.answer(3, 6000, OCR_READ_VERSION);
+		expect(await cache.get(big, 0)).not.toBeNull();
+		await h.answer(3, 6000, OCR_READ_VERSION);
+		expect(h.calls[0].key).toBe('big:9');
+		expect(h.calls[0].reuse).toMatchObject({ pageIndex: 9, version: OCR_READ_VERSION });
+		await h.answer(3, 0);
+		expect(h.calls[0].key).toBe('big:11');
 	});
 
 	it('does nothing where it is not enabled (phones)', async () => {

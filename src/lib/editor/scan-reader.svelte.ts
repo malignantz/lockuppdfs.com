@@ -10,11 +10,16 @@
  * or the tab is hidden; when a file goes away mid-page its worker is stopped; when there
  * is nothing left to read for a while the worker is stopped (its memory, about
  * 0.3–0.4 GB with the OCR engine loaded, goes back).
+ *
+ * The OCR cache (workspace/ocr-cache.ts): a page with a kept reading (read before, here or
+ * by an export, in this visit or with saved work) is not read again; only its words are
+ * laid out, and every such page of the open files is wanted, not only the window's.
  */
 import type { EngineClient } from '../engine/client';
 import { createEngine } from '../engine/client';
 import type { OcrKnownPage, PageRef, PageText, Source, SourceId } from '../core/types';
 import { isDesktop } from '../workspace/ocr-option';
+import { ocrCache, type OcrCache } from '../workspace/ocr-cache';
 import { toasts } from '../ui/toasts.svelte';
 import { BAR_AFTER_MS, PRIOR_PAGE_MS, QUEUE_CONFIG, ScanQueue, sourceOfKey, waitEstimate, type PageState, type QueueConfig } from './scan-queue';
 
@@ -55,6 +60,8 @@ export interface ScanReaderOptions {
 	config?: QueueConfig;
 	notify?: (message: string) => void;
 	now?: () => number;
+	/** Kept readings (default: the app's OCR cache). */
+	cache?: OcrCache;
 	/** Timers (tests). */
 	setTimeout?: (fn: () => void, ms: number) => unknown;
 	clearTimeout?: (t: unknown) => void;
@@ -86,6 +93,8 @@ export class ScanReader {
 	#pumpTimer: unknown = null;
 	/** Bumped when the worker is replaced: answers from an older one are dropped. */
 	#generation = 0;
+	readonly #cache: OcrCache;
+	#cachedSeq = 0;
 
 	constructor(opts: ScanReaderOptions = {}) {
 		this.#make = opts.createEngine ?? (() => createEngine({ createWorker: () => new Worker(new URL('../engine/worker.ts', import.meta.url), { type: 'module', name: 'pdf-scan-reader' }) }));
@@ -96,6 +105,8 @@ export class ScanReader {
 		this.#now = opts.now ?? (() => performance.now());
 		this.#setT = opts.setTimeout ?? ((fn, ms) => setTimeout(fn, ms));
 		this.#clearT = opts.clearTimeout ?? ((t) => clearTimeout(t as ReturnType<typeof setTimeout>));
+		this.#cache = opts.cache ?? ocrCache();
+		this.#cache.onChange(() => this.#findCached());
 	}
 
 	/** The open document changed (Workspace calls this on every change of its pages or sources). */
@@ -219,6 +230,24 @@ export class ScanReader {
 		}
 		this.#queue.setDocument({ all, eligible, unlisted });
 		this.#changed();
+		this.#findCached();
+	}
+
+	/** Marks the qualifying pages that have a kept reading (the OCR cache): they get their words too. */
+	#findCached() {
+		const seq = ++this.#cachedSeq;
+		const keys = [...new Set(this.#pages.map((p) => `${p.sourceId}:${p.pageIndex}`))];
+		void Promise.all(
+			keys.map(async (k) => {
+				const sid = sourceOfKey(k);
+				const s = this.#sources.get(sid);
+				return s && this.#readable(s) && (await this.#cache.get(s, Number(k.slice(sid.length + 1)))) ? k : null;
+			})
+		).then((hits) => {
+			if (seq !== this.#cachedSeq) return;
+			this.#queue.setCached(hits.filter((k): k is string => k !== null));
+			this.#changed();
+		});
 	}
 
 	#changed() {
@@ -255,12 +284,21 @@ export class ScanReader {
 		this.#startedAt = this.#now();
 		this.#changes++;
 		const gen = this.#generation;
-		this.#ensure()
-			.readScanPage(source, pageIndex)
+		this.#cache
+			.get(source, pageIndex)
+			.catch(() => null)
+			.then((kept) => {
+				if (gen !== this.#generation) throw new Error('stopped');
+				return this.#ensure().readScanPage(source, pageIndex, kept ?? undefined);
+			})
 			.then(
 				(r) => {
 					if (gen !== this.#generation) return;
-					if (r.ms > 0) this.#pageMs.push(r.ms);
+					// Read now (not a kept reading): keep it, so no export or later visit reads it again.
+					if (r.ms > 0) {
+						this.#pageMs.push(r.ms);
+						void this.#cache.add(source, [r.reuse]);
+					}
 					if (r.text.words.length) this.#gotWords.add(sid);
 					this.#queue.finish(key, { words: r.text.words.length > 0, value: { known: r.reuse, text: Object.freeze(r.text) as PageText }, ms: r.ms });
 				},

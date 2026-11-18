@@ -15,7 +15,8 @@
 	import OptionPicker from './OptionPicker.svelte';
 	import WatermarkPreview from './WatermarkPreview.svelte';
 	import { exportForm } from './export-form.svelte';
-	import { OCR_HINT, OCR_LABEL, OCR_PAGE_CAP, countScanned, isDesktop, ocrCapNotice, ocrKeepOpen, ocrSummary, offerReadAll, readAllHint, readAllLabel } from './ocr-option';
+	import { OCR_HINT, OCR_LABEL, OCR_PAGE_CAP, OCR_PAGE_MAX, isDesktop, ocrCapNotice, ocrKeepOpen, ocrSummary, offerReadAll, pagesToRead, readAllHint, readAllLabel, scannedRefs } from './ocr-option';
+	import { ocrCache } from './ocr-cache';
 	import { scanReader } from '../editor/scan-reader.svelte';
 	import { BILEVEL_HINT, BILEVEL_LABEL, bilevelCandidates, bilevelSummary, firstPreview, type PreviewImages } from './bilevel-option';
 	import { PRINT_CAP_LABEL, countOversized, printCapHint, printCapLine } from './print-cap-option';
@@ -163,6 +164,26 @@
 	const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 2 : 2;
 	const FORM_WAIT = 2000;
 	let scanned = $state(0);
+	// The scanned pages in order, and those read before (the OCR cache): "Read all" counts only the rest.
+	let scannedList = $state.raw<PageRef[]>([]);
+	let keptScans = $state.raw<ReadonlySet<string>>(new Set());
+	let keptSeq = 0;
+	function findKept() {
+		const seq = ++keptSeq;
+		const list = scannedList;
+		const byId = new Map(store.state.sources.map((x) => [x.id, x]));
+		const keys = [...new Set(list.map((p) => `${p.sourceId}:${p.pageIndex}`))];
+		void Promise.all(
+			keys.map(async (k) => {
+				const p = list.find((r) => `${r.sourceId}:${r.pageIndex}` === k)!;
+				const src = byId.get(p.sourceId);
+				return src && (await ocrCache().get(src, p.pageIndex)) ? k : null;
+			})
+		).then((hits) => {
+			if (seq === keptSeq) keptScans = new Set(hits.filter((k): k is string => k !== null));
+		});
+	}
+	$effect(() => ocrCache().onChange(() => findKept()));
 	// "Make scanned pages black and white": only when a page could qualify (phones too).
 	let bilevelCount = $state(0);
 	let bilevelRefs = $state.raw<PageRef[]>([]);
@@ -194,12 +215,14 @@
 			if (started) return;
 			started = true;
 			Promise.all([
-				desktop ? countScanned(engine, pages, sources) : 0,
+				desktop ? scannedRefs(engine, pages, sources) : [],
 				countOversized(engine, pages, sources),
 				bilevelCandidates(engine, pages, sources)
 			]).then(([s, o, refs]) => {
 				if (seq !== countSeq) return;
-				scanned = s;
+				scannedList = s;
+				scanned = s.length;
+				findKept();
 				oversized = o;
 				bilevelRefs = refs;
 				bilevelCount = refs.length;
@@ -483,11 +506,14 @@
 		if (phase.kind === 'done') URL.revokeObjectURL(phase.url);
 	}
 
+	/** Looking up pages read before, between Export and the work starting. */
+	let starting = false;
+
 	async function run(e?: Event) {
 		e?.preventDefault();
 		touched = true;
 		if (moreProblem) moreOpen = true;
-		if (!canExport || phase.kind === 'working') return;
+		if (!canExport || phase.kind === 'working' || starting) return;
 		const mkPictures = pictures;
 		const mkSplit = !mkPictures && split?.ok ? split.parts : null;
 		const name = mkPictures || mkSplit ? `${nameBase(filename)}.${targetExt}` : normalizeFilename(filename);
@@ -500,7 +526,13 @@
 		const options = mkPictures ? pictureExportOptions(built.options) : built.options;
 		// Pages the editor already read in the background are not read again (same reading, same checks after).
 		if (options.ocr) {
-			const known = scanReader().known();
+			// Pages read before (the OCR cache: in the editor, by an earlier export, or kept with saved work).
+			starting = true;
+			const kept = await ocrCache()
+				.knownFor(store.state.sources, plan.pages)
+				.catch(() => [])
+				.finally(() => (starting = false));
+			const known = [...scanReader().known(), ...kept];
 			if (known.length) options.ocrKnown = known;
 		}
 		const inputBytes = plan.inputBytes;
@@ -534,7 +566,12 @@
 			const s = store.state;
 			const sources = [...s.sources];
 			const assets = [...s.assets];
-			const exportPlan = engine.exportPlan.bind(engine);
+			// Every page an export reads is kept (the OCR cache), also for a split or pictures.
+			const exportPlan: typeof engine.exportPlan = async (...a) => {
+				const r = await engine.exportPlan(...a);
+				void ocrCache().addAll(sources, r.ocrRead);
+				return r;
+			};
 			let done: Extract<Phase, { kind: 'done' }>;
 			if (mkPictures) {
 				const out = await exportPictures({
@@ -607,7 +644,7 @@
 					files: out.parts.map((p) => `${p.name}: ${p.pages}, ${formatBytes(p.bytes)}`)
 				};
 			} else {
-				const result = await engine.exportPlan(store.toExportPlan(options, mode === 'extract' ? ids : undefined), sources, assets, {
+				const result = await exportPlan(store.toExportPlan(options, mode === 'extract' ? ids : undefined), sources, assets, {
 					signal: control?.signal,
 					onProgress: report
 				});
@@ -1054,7 +1091,7 @@
 								<Toggle bind:checked={f.ocr} label={OCR_LABEL} hint={OCR_HINT} />
 								{#if f.ocr && ocrCapNotice(scanned, f.ocrAll && offerReadAll(scanned))}<p class="caption ocr-note">{ocrCapNotice(scanned, f.ocrAll && offerReadAll(scanned))}</p>{/if}
 								{#if f.ocr && offerReadAll(scanned)}
-									<div class="ocr-all"><Toggle bind:checked={f.ocrAll} label={readAllLabel(scanned)} hint={readAllHint(scanned, cores)} /></div>
+									<div class="ocr-all"><Toggle bind:checked={f.ocrAll} label={readAllLabel(scanned)} hint={readAllHint(pagesToRead(scannedList, OCR_PAGE_MAX, keptScans), cores)} /></div>
 								{/if}
 							{/if}
 							{#if bilevelCount > 0}

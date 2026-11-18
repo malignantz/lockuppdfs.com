@@ -82,6 +82,11 @@
 				kept already, the app says the open work is not being saved and lets you choose what to forget.
 			</li>
 			<li>
+				<strong>Text read from scanned pages</strong> (when the app reads the words in a scan, so you can select,
+				find or make them searchable) is kept with your saved work, so no page is read twice, and is deleted with it.
+				It holds the words and where they sit on the page, never a picture of the page.
+			</li>
+			<li>
 				<strong>Passwords are never kept.</strong> A file you opened with a password is kept as you gave it, still
 				locked, and asks for the password again.
 			</li>

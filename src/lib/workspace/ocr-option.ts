@@ -38,13 +38,28 @@ export function scannedPagesOf(engine: Pick<Engine, 'scannedPages'>, source: Sou
 
 /** How many of `pages` the option would try (before the cap). */
 export async function countScanned(engine: Pick<Engine, 'scannedPages'>, pages: readonly PageRef[], sources: readonly Source[]): Promise<number> {
+	return (await scannedRefs(engine, pages, sources)).length;
+}
+
+/** The pages of `pages` the option would try, in document order (before the cap). */
+export async function scannedRefs(engine: Pick<Engine, 'scannedPages'>, pages: readonly PageRef[], sources: readonly Source[]): Promise<PageRef[]> {
 	const byId = new Map(sources.map((s) => [s.id, s]));
 	const sets = new Map<SourceId, Set<number>>();
 	for (const id of new Set(pages.map((p) => p.sourceId))) {
 		const s = byId.get(id);
 		if (s?.kind === 'pdf') sets.set(id, new Set(await scannedPagesOf(engine, s)));
 	}
-	return pages.filter((p) => !p.stamps.some((s) => s.kind === 'redact') && sets.get(p.sourceId)?.has(p.pageIndex)).length;
+	return pages.filter((p) => !p.stamps.some((s) => s.kind === 'redact') && sets.get(p.sourceId)?.has(p.pageIndex));
+}
+
+/** Source pages an export of `refs` (scannedRefs) still has to read with `cap`: each source page once, without the kept ones. */
+export function pagesToRead(refs: readonly Pick<PageRef, 'sourceId' | 'pageIndex'>[], cap: number, kept: ReadonlySet<string>): number {
+	const left = new Set<string>();
+	for (const r of refs.slice(0, cap)) {
+		const k = `${r.sourceId}:${r.pageIndex}`;
+		if (!kept.has(k)) left.add(k);
+	}
+	return left.size;
 }
 
 /** The pages an export reads (ExportOptions.ocrPages): the first 20, or with "Read all" up to the ceiling. */
@@ -101,9 +116,13 @@ export function aboutTime(seconds: number): string {
 	return q === 1 ? 'about an hour' : `about ${q} hours`;
 }
 
-/** The hint under "Read all": its time, honestly, and that the tab has to stay open. */
-export function readAllHint(scanned: number, cores: number): string {
-	const t = aboutTime(ocrSeconds(Math.min(scanned, OCR_PAGE_MAX), cores));
+/**
+ * The hint under "Read all": its time, honestly, and that the tab has to stay open.
+ * `toRead`: the pages still to read (pagesToRead with the ceiling: pages read before are not counted).
+ */
+export function readAllHint(toRead: number, cores: number): string {
+	if (toRead <= 0) return 'Read before on this device: no wait.';
+	const t = aboutTime(ocrSeconds(Math.min(toRead, OCR_PAGE_MAX), cores));
 	return `Takes ${t}. Keep this tab open while it reads.`;
 }
 
@@ -118,7 +137,7 @@ export function ocrProgressText(p: ExportProgress | null): string | null {
 	if (p.stage !== 'ocr') return null;
 	// Every page read: the rest is the ordinary build and check.
 	if (p.done >= p.total) return null;
-	return `Reading page ${p.done + 1} of ${p.total}`;
+	return `Reading page ${p.done + 1} of ${p.total}${p.reused ? ` — ${p.reused} already read` : ''}`;
 }
 
 /** The result lines after export. */

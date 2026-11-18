@@ -1172,6 +1172,14 @@ export function createSession(deps: SessionDeps) {
 		/** Export options changed. */
 		touch: () => onStoreChange(),
 		sweep,
+		/**
+		 * Where text read from scanned pages is kept with saved work (workspace/ocr-cache.ts),
+		 * or null when work is not saved on this device. Rows are written only for files that
+		 * are stored and are deleted with them.
+		 */
+		ocrStore(): Pick<SessionStorage, 'getOcr' | 'putOcr'> | null {
+			return storage && deps.prefs.get() ? storage : null;
+		},
 		subscribe(fn: () => void) {
 			listeners.add(fn);
 			return () => void listeners.delete(fn);

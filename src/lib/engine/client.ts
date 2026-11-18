@@ -183,15 +183,15 @@ export function createEngine(options: { createWorker?: () => WorkerLike } = {}):
 	 * pageText and readScanPage send a source's bytes to the worker once; later calls name
 	 * it by id, and a worker that dropped the file answers NEED_BYTES (protocol.ts).
 	 */
-	const withBytesOnce = async <T>(method: 'pageText' | 'readScanPage', source: Source, pageIndex: number): Promise<T> => {
+	const withBytesOnce = async <T>(method: 'pageText' | 'readScanPage', source: Source, pageIndex: number, ...extra: unknown[]): Promise<T> => {
 		if (textSent.has(source.id)) {
 			try {
-				return await call<T>(method, [{ ...source, bytes: undefined }, pageIndex]);
+				return await call<T>(method, [{ ...source, bytes: undefined }, pageIndex, ...extra]);
 			} catch (e) {
 				if (!(e instanceof EngineError && e.message === NEED_BYTES)) throw e;
 			}
 		}
-		const pending = call<T>(method, [source, pageIndex]);
+		const pending = call<T>(method, [source, pageIndex, ...extra]);
 		// The set of the worker this call went to (it may have just been started).
 		const sent = textSent;
 		const res = await pending;
@@ -212,7 +212,7 @@ export function createEngine(options: { createWorker?: () => WorkerLike } = {}):
 		bilevelPages: (source) => call('bilevelPages', [source]),
 		bilevelPreview: (source, pageIndex) => call('bilevelPreview', [source, pageIndex]),
 		pageText: (source, pageIndex) => withBytesOnce('pageText', source, pageIndex),
-		readScanPage: (source, pageIndex) => withBytesOnce('readScanPage', source, pageIndex),
+		readScanPage: (source, pageIndex, reuse) => withBytesOnce('readScanPage', source, pageIndex, ...(reuse ? [reuse] : [])),
 		terminate: () => reset('The PDF engine was stopped.')
 	};
 }

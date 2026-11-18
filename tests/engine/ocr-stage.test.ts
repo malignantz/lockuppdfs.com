@@ -12,7 +12,7 @@ import { EngineError } from '../../src/lib/engine/errors';
 import { mupdf } from '../../src/lib/engine/mupdf';
 import { pageTextOf } from '../../src/lib/engine/page-text';
 import { renderAndCompare } from '../../src/lib/engine/shrink';
-import { OCR_CAP, OCR_MAX, REPLACE_AFTER, ocrLimit, verifyTextLayer, type OcrBackend, type OcrReader } from '../../src/lib/engine/ocr/stage';
+import { OCR_CAP, OCR_MAX, OCR_PIPELINE_VERSION, REPLACE_AFTER, ocrLimit, verifyTextLayer, type OcrBackend, type OcrReader } from '../../src/lib/engine/ocr/stage';
 import type { OcrWord } from '../../src/lib/engine/ocr/gate';
 import type { OcrRead, Orientation } from '../../src/lib/engine/ocr/tess';
 import type { ExportProgress, PageRef, Source } from '../../src/lib/core/types';
@@ -175,7 +175,7 @@ describe('OCR stage', () => {
 		expect(f.reads).toBe(26);
 		expect(f.readers).toBeGreaterThanOrEqual(Math.ceil(26 / REPLACE_AFTER));
 		expect(f.alive.size).toBe(0);
-		expect(progress.filter((p) => p.stage === 'ocr').at(-1)).toEqual({ stage: 'ocr', done: 26, total: 26 });
+		expect(progress.filter((p) => p.stage === 'ocr').at(-1)).toEqual({ stage: 'ocr', done: 26, total: 26, reused: 0 });
 		expect(res.checks.find((c) => c.name === 'text-layer')).toMatchObject({ ok: true });
 		expect((await words(res.bytes, 25)).length).toBe(meta.words.length);
 
@@ -188,6 +188,67 @@ describe('OCR stage', () => {
 		const none = await e2.exportPlan({ pages: [ref(s2, 0), ref(s2, 7)], options: { ...opts(), ocrPages: 0 } }, [s2], [], {});
 		expect(none.ocr).toEqual({ eligible: 2, cap: 0, searchable: [], declined: [] });
 		expect(g.reads).toBe(1);
+	});
+
+	it('gives back what it read (declines too, with the version) and reads nothing again when given it (the OCR cache)', async () => {
+		const f = fake();
+		const { eng, src } = await setup(f);
+		const pages = src.pages.map((_, i) => ref(src, i));
+		const first = await eng.exportPlan({ pages, options: opts() }, [src], [], {});
+		expect(f.reads).toBe(3);
+		const kept = first.ocrRead!;
+		expect(kept.map((k) => [k.pageIndex, (k.outcome as { ok: boolean }).ok, k.version])).toEqual([
+			[0, true, OCR_PIPELINE_VERSION],
+			[1, false, OCR_PIPELINE_VERSION],
+			[2, true, OCR_PIPELINE_VERSION],
+			[7, true, OCR_PIPELINE_VERSION]
+		]);
+		expect(kept[1].outcome).toMatchObject({ ok: false, why: 'orientation' });
+
+		// The same export again with them: no page read, no worker started, the same file and checks.
+		const readers = f.readers;
+		const progress: ExportProgress[] = [];
+		const second = await eng.exportPlan({ pages, options: { ...opts(), ocrKnown: structuredClone(kept) } }, [src], [], { onProgress: (p) => progress.push(p) });
+		expect(f.reads).toBe(3);
+		expect(f.readers).toBe(readers);
+		expect(second.ocr).toEqual(first.ocr);
+		expect(second.ocrRead).toEqual([]);
+		expect(second.checks.every((c) => c.ok)).toBe(true);
+		expect(second.checks.find((c) => c.name === 'text-layer')).toMatchObject({ ok: true });
+		expect(await contentOf(second.bytes, 0)).toBe(await contentOf(first.bytes, 0));
+		expect(progress.some((p) => p.stage === 'ocr')).toBe(false);
+
+		// Part of them: the rest is read, and progress says how many were reused.
+		const third = await eng.exportPlan({ pages, options: { ...opts(), ocrKnown: kept.slice(0, 2) } }, [src], [], { onProgress: (p) => progress.push(p) });
+		expect(f.reads).toBe(5);
+		expect(third.ocrRead!.map((k) => k.pageIndex)).toEqual([2, 7]);
+		expect(progress.filter((p) => p.stage === 'ocr').at(-1)).toEqual({ stage: 'ocr', done: 2, total: 2, reused: 2 });
+
+		// Readings of another pipeline version are not used.
+		const old = kept.map((k) => ({ ...k, version: OCR_PIPELINE_VERSION + 1 }));
+		await eng.exportPlan({ pages, options: { ...opts(), ocrKnown: old } }, [src], [], {});
+		expect(f.reads).toBe(8);
+	});
+
+	it('readScanPage uses a kept reading instead of reading: same words, no worker', async () => {
+		const f = fake();
+		const { eng, src } = await setup(f);
+		const fresh = await eng.readScanPage(src, 0);
+		expect(f.reads).toBe(1);
+		expect(fresh.reuse.version).toBe(OCR_PIPELINE_VERSION);
+		expect(fresh.ms).toBeGreaterThan(0);
+		const again = await eng.readScanPage(src, 0, structuredClone(fresh.reuse));
+		expect(f.reads).toBe(1);
+		expect(again.ms).toBe(0);
+		expect(again.text).toEqual(fresh.text);
+		const declined = await eng.readScanPage(src, 1);
+		expect(declined.reuse.outcome).toMatchObject({ ok: false, why: 'orientation' });
+		await eng.readScanPage(src, 1, declined.reuse);
+		expect(f.reads).toBe(1);
+		// Another version or another page: read as usual.
+		await eng.readScanPage(src, 0, { ...fresh.reuse, version: 0 });
+		await eng.readScanPage(src, 2, fresh.reuse);
+		expect(f.reads).toBe(3);
 	});
 
 	it('keeps the page count within its ceiling whatever is asked', () => {

@@ -68,6 +68,8 @@ export class ScanQueue<T> {
 	/** Keys the very long document's viewer asked for that are not known to qualify yet. */
 	private onDemand = new Set<string>();
 	private results = new Map<string, PageResult<T>>();
+	/** Pages with a kept reading (the OCR cache): wanted too, since only their words are laid out. */
+	private cached = new Set<string>();
 	/** Results dropped for room: not read again until the person views the page again. */
 	private evicted = new Set<string>();
 	private inFlight: string | null = null;
@@ -90,6 +92,11 @@ export class ScanQueue<T> {
 		for (const k of [...this.batchKeys]) if (!present.has(k)) this.batchKeys.delete(k);
 		for (const k of [...this.evicted]) if (!present.has(k)) this.evicted.delete(k);
 		if (this.viewed && !present.has(this.viewed)) this.viewed = null;
+	}
+
+	/** Pages whose reading is kept (the OCR cache): all of them get their words, whatever the window. */
+	setCached(keys: Iterable<string>): void {
+		this.cached = new Set(keys);
 	}
 
 	/** The page the editor shows (null: the editor is closed). */
@@ -219,6 +226,7 @@ export class ScanQueue<T> {
 		}
 		for (const k of this.eligible.slice(0, this.cfg.autoFirst)) out.add(k);
 		for (const k of this.asked) if (this.eligibleSet.has(k)) out.add(k);
+		for (const k of this.cached) if (this.eligibleSet.has(k)) out.add(k);
 		return out;
 	}
 

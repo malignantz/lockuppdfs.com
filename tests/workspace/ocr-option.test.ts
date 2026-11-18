@@ -12,6 +12,7 @@ import {
 	ocrSlots,
 	ocrSummary,
 	offerReadAll,
+	pagesToRead,
 	readAllHint,
 	readAllLabel
 } from '../../src/lib/workspace/ocr-option';
@@ -49,6 +50,16 @@ describe('Make scanned pages searchable: dialog words', () => {
 		expect(readAllHint(5000, 4)).toBe(readAllHint(500, 4));
 		expect(readAllHint(500, 4)).toBe('Takes about 35 minutes. Keep this tab open while it reads.');
 		expect(readAllHint(500, 1)).toBe('Takes about an hour. Keep this tab open while it reads.');
+		// Every page read before (the OCR cache).
+		expect(readAllHint(0, 4)).toBe('Read before on this device: no wait.');
+	});
+
+	it('counts only the pages still to read: each source page once, within the cap, without the kept ones', () => {
+		const r = (sourceId: string, pageIndex: number) => ({ sourceId, pageIndex });
+		const refs = [r('a', 0), r('a', 1), r('a', 0), r('b', 0), r('a', 2)];
+		expect(pagesToRead(refs, 500, new Set())).toBe(4);
+		expect(pagesToRead(refs, 500, new Set(['a:0', 'b:0']))).toBe(2);
+		expect(pagesToRead(refs, 2, new Set(['a:1']))).toBe(1);
 	});
 
 	it('words a time coarsely', () => {
@@ -66,7 +77,7 @@ describe('Make scanned pages searchable: dialog words', () => {
 		expect(ocrKeepOpen({ stage: 'ocr', done: 3, total: 20 })).toBe(false);
 		expect(ocrKeepOpen({ stage: 'ocr', done: 3, total: 34 })).toBe(true);
 		expect(ocrKeepOpen({ stage: 'ocr', done: 34, total: 34 })).toBe(false);
-		expect(ocrKeepOpen({ stage: 'check', done: 0, total: 3 })).toBe(false);
+		expect(ocrKeepOpen({ stage: 'check', done: 0, total: 3, last: true })).toBe(false);
 	});
 
 	it('shows reading progress', () => {
@@ -75,6 +86,8 @@ describe('Make scanned pages searchable: dialog words', () => {
 		expect(ocrProgressText({ stage: 'ocr', done: 2, total: 12 })).toBe('Reading page 3 of 12');
 		expect(ocrProgressText({ stage: 'ocr', done: 11, total: 12 })).toBe('Reading page 12 of 12');
 		expect(ocrProgressText({ stage: 'ocr', done: 12, total: 12 })).toBeNull();
+		expect(ocrProgressText({ stage: 'ocr', done: 2, total: 5, reused: 29 })).toBe('Reading page 3 of 5 — 29 already read');
+		expect(ocrProgressText({ stage: 'ocr', done: 2, total: 5, reused: 0 })).toBe('Reading page 3 of 5');
 	});
 
 	it('says what happened after export, without alarm for declined pages', () => {
