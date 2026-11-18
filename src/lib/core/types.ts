@@ -304,7 +304,7 @@ export interface ExportOptions {
 	/**
 	 * Added 2026-11-18. With `ocr`: most scanned pages to try, in document order (a whole
 	 * number; 0 tries none). Absent or invalid: 20. The engine never tries more than its
-	 * ceiling (500) whatever is asked; OcrReport.cap says the number used.
+	 * ceiling (300) whatever is asked; OcrReport.cap says the number used.
 	 */
 	ocrPages?: number;
 	/**
@@ -502,7 +502,7 @@ export type TagsDropReason = 'redacted' | 'flattened' | 'merged' | 'repeated' | 
 export interface OcrReport {
 	/** Eligible pages in the export. */
 	eligible: number;
-	/** Most pages this export tries: ExportOptions.ocrPages within the engine's ceiling (500), or 20. */
+	/** Most pages this export tries: ExportOptions.ocrPages within the engine's ceiling (300), or 20. */
 	cap: number;
 	/** 1-based output page numbers that got a text layer. */
 	searchable: number[];

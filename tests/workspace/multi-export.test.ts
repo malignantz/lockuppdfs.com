@@ -160,8 +160,8 @@ describe('exportSplit', () => {
 			'18 pages made searchable. 2 pages were left as they were because the text could not be read well enough.',
 			'This file has 36 scanned pages. Only the first 20 were read.'
 		]);
-		const all = await run(500);
-		expect(all.asked).toEqual([500, 488, 476]);
+		const all = await run(300);
+		expect(all.asked).toEqual([300, 288, 276]);
 		expect(all.notes).toEqual(['33 pages made searchable. 3 pages were left as they were because the text could not be read well enough.']);
 	});
 

@@ -9,7 +9,7 @@ import { plural } from './logic';
 /** Most pages one export reads unless "Read all" is on (the engine's OCR_CAP; checked by a test). */
 export const OCR_PAGE_CAP = 20;
 /** Most pages one export reads with "Read all" on (the engine's OCR_MAX; checked by a test). */
-export const OCR_PAGE_MAX = 500;
+export const OCR_PAGE_MAX = 300;
 
 export const OCR_LABEL = 'Make scanned pages searchable';
 export const OCR_HINT = 'Reads typed English on scanned pages so you can search and copy the text. The pages look the same.';
@@ -78,7 +78,7 @@ export function offerReadAll(scanned: number): boolean {
 	return scanned > OCR_PAGE_CAP;
 }
 
-/** Its label: "Read all 34 pages", or past the ceiling "Read the first 500 pages". */
+/** Its label: "Read all 34 pages", or past the ceiling "Read the first 300 pages". */
 export function readAllLabel(scanned: number): string {
 	return scanned > OCR_PAGE_MAX ? `Read the first ${OCR_PAGE_MAX} pages` : `Read all ${scanned} pages`;
 }

@@ -36,11 +36,13 @@ import type { OcrRead, Orientation } from './tess';
 export const OCR_CAP = 20;
 /**
  * The ceiling, whatever an export asks. Set from the long-run measurement (2026-11-18,
- * tools/ocr/wired/long.ts): time per page and memory stay flat over the run, so the
- * ceiling bounds the wait (500 pages at 2 readers is about 25 minutes on a 4-core desktop),
- * not memory.
+ * tools/ocr/wired/long.ts, Node, 2 readers, 300 Letter scans): memory stays flat while
+ * reading (RSS 2.42–2.52 GB from page 50 to page 300, the readers replaced every 10
+ * pages), so the page count does not grow memory; what does is the file itself in the
+ * layer checks after reading (4.0 GB peak for the 284 MB file). 300 pages is as far as
+ * that was measured and about 20 minutes on a 4-core desktop.
  */
-export const OCR_MAX = 500;
+export const OCR_MAX = 300;
 
 /**
  * Readers working at once for `cores` (navigator.hardwareConcurrency): two on a desktop
