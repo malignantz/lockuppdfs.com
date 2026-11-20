@@ -56,6 +56,7 @@ test('opening a file, one tool and each export post their names to /use, and not
 	// An export with the default options: done, and Optimize (on by default).
 	const done = await exportOnce(page);
 	await expect.poll(names).toEqual(['open-pdf', 'tool-check', 'export-done', 'export-optimize']);
+	await Promise.all([page.waitForEvent('download'), done.getByRole('button', { name: 'Download' }).click()]);
 	await done.getByRole('button', { name: 'Done' }).click();
 	await expect(done).toBeHidden();
 
