@@ -35,6 +35,7 @@
 	import StampShape from './StampShape.svelte';
 	import SignaturePad from './SignaturePad.svelte';
 	import CopyDialog from './CopyDialog.svelte';
+	import { used } from '../site/usage';
 	import FormLayer from './FormLayer.svelte';
 	import CropFrame from './CropFrame.svelte';
 	import { FULL, clampCrop, fullSize, reframeBox } from '../doc/crop';
@@ -1016,6 +1017,7 @@
 			return;
 		}
 		copied = true;
+		used('tool-copy-text');
 		clearTimeout(copiedTimer);
 		copiedTimer = setTimeout(() => (copied = false), 1500);
 		const n = Math.abs(s.end - s.anchor) + 1;

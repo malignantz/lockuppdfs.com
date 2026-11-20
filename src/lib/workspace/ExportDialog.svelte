@@ -12,6 +12,7 @@
 	import Toggle from '../ui/Toggle.svelte';
 	import { focusables } from '../ui/focus';
 	import CampaignAsk from '../site/CampaignAsk.svelte';
+	import { exportEvents, exported } from '../site/usage';
 	import OptionPicker from './OptionPicker.svelte';
 	import WatermarkPreview from './WatermarkPreview.svelte';
 	import BlackoutTerms from './BlackoutTerms.svelte';
@@ -676,6 +677,7 @@
 			}
 			done.url = URL.createObjectURL(done.blob);
 			phase = done;
+			exported(exportEvents(options, { made: done.made, pictureKind, extract: mode === 'extract', redacting: plan.redactions > 0, oversized, limits: plan.limits.length > 0, readCap: OCR_PAGE_CAP }));
 		} catch (err) {
 			if (isEngineErrorShape(err) && err.code === 'cancelled') {
 				phase = { kind: 'form' };
