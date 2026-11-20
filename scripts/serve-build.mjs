@@ -4,6 +4,7 @@
 // - /privacy serves privacy.html, / serves index.html
 // - unknown paths get 404.html with status 404
 // - every _headers rule whose pattern matches is applied (later rules add to earlier ones)
+// - campaign build only: /use answers 204 with nothing, as its Worker does (it counts nothing here)
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
@@ -74,6 +75,11 @@ function resolve(pathname) {
 
 const server = createServer((req, res) => {
 	const url = new URL(req.url ?? '/', 'http://localhost');
+	if (url.pathname === '/use' && process.env.VITE_SITE === 'lockup') {
+		req.resume();
+		res.writeHead(204, { 'Cache-Control': 'no-store' }).end();
+		return;
+	}
 	if (url.pathname === '/_headers') {
 		res.writeHead(404).end();
 		return;

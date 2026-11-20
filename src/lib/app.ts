@@ -6,6 +6,7 @@ import { createDocStore, type DocStore } from './doc/store';
 import { createEngine, type EngineClient } from './engine/client';
 import { createRenderer } from './render/renderer';
 import type { Renderer, SourceId } from './core/types';
+import { watchUsage } from './site/usage';
 
 export interface App {
 	store: DocStore;
@@ -32,6 +33,8 @@ export function getApp(): App {
 			}),
 			onSourceReleased: (fn) => void released.add(fn)
 		};
+		// Which tools get used (campaign site only; does nothing on the plain site).
+		watchUsage(app.store);
 	}
 	return app;
 }

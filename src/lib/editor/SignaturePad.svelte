@@ -11,6 +11,7 @@
 	import { addPoint, drawStrokes, type Stroke } from './ink';
 	import { imageDataPng, photoPixels, processPhoto, strokesToPng } from './png';
 	import { deleteInk, listSaved, saveInk, type SavedInk } from './saved';
+	import { inkMade } from '../site/usage';
 	import { inkRgb } from './stamp-view';
 	import { HAND_FONTS, canvasMeasure, loadHandFonts, missingChars, renderTyped } from './handwriting';
 
@@ -77,6 +78,7 @@
 	});
 
 	function pickSaved(s: SavedInk) {
+		inkMade(s.id, 'saved');
 		onpick({ id: s.id, kind: s.kind, png: s.png, width: s.width, height: s.height });
 		open = false;
 	}
@@ -266,6 +268,7 @@
 			if (save) {
 				storageOk = await saveInk({ ...asset, kind, created: Date.now() });
 			}
+			inkMade(asset.id, mode);
 			onpick(asset);
 			strokes = [];
 			photo = null;

@@ -18,6 +18,7 @@
 	import { findStatus } from './status';
 	import { rangeBox, type LayerLine } from './lines';
 	import MarkBlackout from './MarkBlackout.svelte';
+	import { used } from '../site/usage';
 	import type { StampBox } from '../core/types';
 
 	interface Props {
@@ -61,6 +62,10 @@
 	const anyText = $derived(perPage.some((l) => !!l?.length));
 	const result = $derived(matchPages(perPage, query));
 	const hits = $derived(result.hits);
+	// Find counts as used once a search finds something (campaign site only).
+	$effect(() => {
+		if (query && hits.length) used('find-used');
+	});
 
 	/** The current match, by where it is (indices shift while pages are still being read). */
 	let sel = $state.raw<{ id: PageId; line: number; start: number } | null>(null);

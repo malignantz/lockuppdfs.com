@@ -5,13 +5,21 @@
 // served by the assets layer without it. It always answers with the assets response,
 // untouched. For a real page load it also sends one pageview to the self-hosted visit
 // counter (Umami), after the response, so the visitor never waits for it and a dead
-// counter can never slow or break a page. The one other thing it does: /give, where the
-// donation link points, counts the click the same way and forwards to the fundraiser. Nothing is added to the page: the browser
-// still talks only to this origin.
+// counter can never slow or break a page. Two other paths: /give, where the donation link
+// points, counts the click the same way and forwards to the fundraiser; /use, where the app
+// posts the name of a tool that was used (src/lib/site/usage.ts), counts that name as an
+// event and answers 204 with nothing. Nothing is added to the page: the browser still talks
+// only to this origin.
 //
 // What is sent: the page path (no query string, except the campaign tags below), the
 // referring page (origin + path, no query), the first language tag, the visitor's User-Agent and IP. Umami works out the
 // browser, OS, device and location from those and keeps them; it does not keep the IP.
+// For /use: the event name (only names on the fixed list in src/lib/site/usage-events.ts)
+// with the language, User-Agent and IP as above, and no referrer or other data.
+
+import { isUsageEvent, USE_PATH, type UsageEvent } from '../src/lib/site/usage-events';
+
+export { USE_PATH };
 
 export interface Env {
 	ASSETS: { fetch(request: Request): Promise<Response> };
@@ -136,6 +144,65 @@ export function isGiveClick(request: Request): boolean {
 	const h = request.headers;
 	const purpose = `${h.get('sec-purpose') ?? ''} ${h.get('purpose') ?? ''} ${h.get('x-moz') ?? ''}`.toLowerCase();
 	return !/prefetch|prerender|preview/.test(purpose);
+}
+
+/** A /use body larger than this is not read: a name and its braces need far less. */
+export const USE_MAX_BYTES = 200;
+
+/** The request body as text, or null when it is longer than `max` bytes. */
+async function smallBody(request: Request, max: number): Promise<string | null> {
+	if (Number(request.headers.get('content-length') ?? 0) > max) return null;
+	if (!request.body) return '';
+	const reader = request.body.getReader();
+	const chunks: Uint8Array[] = [];
+	let size = 0;
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		size += value.byteLength;
+		if (size > max) {
+			await reader.cancel().catch(() => undefined);
+			return null;
+		}
+		chunks.push(value);
+	}
+	const all = new Uint8Array(size);
+	let at = 0;
+	for (const c of chunks) {
+		all.set(c, at);
+		at += c.byteLength;
+	}
+	return new TextDecoder().decode(all);
+}
+
+/**
+ * The tool name a POST to /use carries, or null when it does not count: another method,
+ * a request from another site (its Origin is not this site's, and Sec-Fetch-Site does not
+ * say same-origin), a body of USE_MAX_BYTES or more, not JSON, or a name not on the list.
+ */
+export async function usageOf(request: Request): Promise<UsageEvent | null> {
+	if (request.method !== 'POST') return null;
+	const h = request.headers;
+	const origin = h.get('origin');
+	const own = origin !== null ? origin === new URL(request.url).origin : h.get('sec-fetch-site') === 'same-origin';
+	if (!own) return null;
+	const text = await smallBody(request, USE_MAX_BYTES - 1);
+	if (text === null) return null;
+	try {
+		const body = JSON.parse(text) as { name?: unknown } | null;
+		return body && typeof body === 'object' && isUsageEvent(body.name) ? body.name : null;
+	} catch {
+		return null;
+	}
+}
+
+/** One tool use, as a named event on the start page: no referrer, no data, only the name. */
+export function useEvent(request: Request, website: string, name: UsageEvent): Pageview {
+	const body = pageview(request, website);
+	delete body.payload.referrer;
+	body.payload.url = '/';
+	body.payload.name = name;
+	return body;
 }
 
 /** Send one pageview. Never throws, never takes longer than TIMEOUT_MS. */

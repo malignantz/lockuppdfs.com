@@ -5,7 +5,8 @@ import { test as base, expect } from '@playwright/test';
  * browser context:
  *  - requests to any origin other than the site (and aborts them),
  *  - console errors,
- *  - Content-Security-Policy violations (via the securitypolicyviolation event).
+ *  - Content-Security-Policy violations (via the securitypolicyviolation event),
+ *  - on the plain site, any request to /use (only the campaign build counts tool use).
  * By default a test fails if any of these happened; call `guard.allowConsoleErrors()`
  * in a test that provokes errors on purpose.
  */
@@ -18,15 +19,17 @@ export interface Guard {
 
 export const test = base.extend<{ guard: Guard }>({
 	guard: [
-		async ({ context, page, baseURL }, use) => {
+		async ({ context, page, baseURL }, use, testInfo) => {
 			const origin = new URL(baseURL!).origin;
 			const external: string[] = [];
+			const usePosts: string[] = [];
 			const consoleErrors: string[] = [];
 			let checkConsole = true;
 
 			await context.route('**/*', (route) => {
 				const url = route.request().url();
 				if (url.startsWith('data:') || url.startsWith('blob:') || new URL(url).origin === origin) {
+					if (!url.startsWith('data:') && !url.startsWith('blob:') && new URL(url).pathname === '/use') usePosts.push(url);
 					return route.continue();
 				}
 				external.push(url);
@@ -59,6 +62,7 @@ export const test = base.extend<{ guard: Guard }>({
 			await use(guard);
 
 			expect(external, 'requests left the origin').toEqual([]);
+			if (testInfo.project.name !== 'lockup') expect(usePosts, 'the plain site counted tool use').toEqual([]);
 			if (checkConsole) {
 				expect(consoleErrors, 'console errors').toEqual([]);
 				expect(await guard.cspViolations(), 'CSP violations').toEqual([]);
