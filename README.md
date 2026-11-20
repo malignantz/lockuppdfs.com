@@ -46,6 +46,8 @@ The campaign site's Worker (`workers/lockup-visits.ts`) counts page loads server
 the self-hosted Umami (stats.meseeks.xyz) and passes every response through unchanged; it runs
 only for the pages listed in `run_worker_first`, and the browser still contacts no other origin. The donation link
 points at `/give` on the same site, where the Worker counts the click and forwards to the fundraiser.
+Which tools get used is counted the same way: the app posts only the tool's name to `/use` on the same
+site (`src/lib/site/usage.ts`; the names are fixed in `usage-events.ts`), and the Worker passes it on.
 The plain site has no Worker script and counts nothing.
 
 ```sh
