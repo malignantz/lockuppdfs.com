@@ -5,7 +5,8 @@
 // workers/lockup-visits.ts runs only for the HTML pages listed in run_worker_first; it
 // passes the assets response through unchanged and counts the page load server-side in
 // the self-hosted Umami. It also answers /give (the donation link): counts the click and
-// forwards to the fundraiser. Every other request (JS, wasm, fonts, images, the service worker,
+// forwards to the fundraiser; and /use (the app posts the name of a tool that was used):
+// answers 204 and counts the name, if it is on the app's fixed list. Every other request (JS, wasm, fonts, images, the service worker,
 // the /a /b /c forwards, unknown paths) is served by the assets layer without it.
 {
 	"name": "lockuppdfs",
@@ -16,7 +17,7 @@
 		"binding": "ASSETS",
 		"html_handling": "auto-trailing-slash",
 		"not_found_handling": "404-page",
-		"run_worker_first": ["/", "/privacy", "/kit", "/give"]
+		"run_worker_first": ["/", "/privacy", "/kit", "/give", "/use"]
 	},
 	"vars": {
 		"UMAMI_WEBSITE_ID": "db6c50b3-aad5-4f1a-ab5a-aa8f5262b520",

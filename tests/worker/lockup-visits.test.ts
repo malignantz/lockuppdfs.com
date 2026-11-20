@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import worker from '../../workers/lockup-visits';
 import { readFileSync } from 'node:fs';
+import { USAGE_EVENTS } from '../../src/lib/site/usage-events';
 import { GIVE_URL, giveClick, isPageView, languageOf, pageview, referrerOf, send, TIMEOUT_MS, type Env } from '../../workers/visits';
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
@@ -230,5 +231,103 @@ describe('the Worker', () => {
 		const e = { ...env(), UMAMI_URL: '' };
 		expect((await worker.fetch(req('/'), e, c)).status).toBe(200);
 		expect(c.waits).toHaveLength(0);
+	});
+});
+
+describe('tool use (/use)', () => {
+	const ORIGIN = 'https://lockuppdfs.com';
+	function use(body: string, headers: Record<string, string> = { origin: ORIGIN }, method = 'POST'): Request {
+		return new Request(`${ORIGIN}/use`, {
+			method,
+			headers: { 'content-type': 'text/plain;charset=UTF-8', 'user-agent': UA, ...headers },
+			body: method === 'GET' || method === 'HEAD' ? undefined : body
+		});
+	}
+
+	async function run(r: Request, e: Env = env()) {
+		const c = ctx();
+		const assets = vi.fn(async () => ok());
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
+		try {
+			const res = await worker.fetch(r, { ...e, ASSETS: { fetch: assets } }, c);
+			await Promise.all(c.waits);
+			return { res, waits: c.waits.length, sent: fetchSpy.mock.calls.map((x) => JSON.parse(x[1]!.body as string)), assets };
+		} finally {
+			fetchSpy.mockRestore();
+		}
+	}
+
+	it('counts a listed name from this site as one named event, and answers 204 with nothing', async () => {
+		const { res, sent, assets } = await run(use('{"name":"tool-signature"}', { origin: ORIGIN, referer: `${ORIGIN}/`, 'cf-connecting-ip': '8.8.8.8' }));
+		expect(res.status).toBe(204);
+		expect(res.headers.get('cache-control')).toBe('no-store');
+		expect(await res.text()).toBe('');
+		expect(assets).not.toHaveBeenCalled();
+		expect(sent).toHaveLength(1);
+		expect(sent[0].payload).toEqual({
+			website: 'db6c50b3-aad5-4f1a-ab5a-aa8f5262b520',
+			hostname: 'lockuppdfs.com',
+			url: '/',
+			title: '',
+			ip: '8.8.8.8',
+			userAgent: UA,
+			name: 'tool-signature'
+		});
+	});
+
+	it('also counts with Sec-Fetch-Site same-origin and no Origin header', async () => {
+		const { sent } = await run(use('{"name":"export-done"}', { 'sec-fetch-site': 'same-origin' }));
+		expect(sent.map((s) => s.payload.name)).toEqual(['export-done']);
+	});
+
+	it('answers 204 and counts nothing for an unknown name, another origin, a large body or bad JSON', async () => {
+		for (const r of [
+			use('{"name":"report.pdf"}'),
+			use('{"name":["open-pdf"]}'),
+			use('{"name":"open-pdf"}', { origin: 'https://evil.example' }),
+			use('{"name":"open-pdf"}', { origin: 'https://evil.example', 'sec-fetch-site': 'same-origin' }),
+			use('{"name":"open-pdf"}', { 'sec-fetch-site': 'cross-site' }),
+			use('{"name":"open-pdf"}', {}),
+			use(`{"name":"open-pdf","pad":"${'x'.repeat(200)}"}`),
+			use('{"name":"open-pdf"'),
+			use('open-pdf'),
+			use('')
+		]) {
+			const { res, waits } = await run(r);
+			expect(res.status).toBe(204);
+			expect(res.headers.get('cache-control')).toBe('no-store');
+			expect(waits).toBe(0);
+		}
+	});
+
+	it('answers GET and HEAD with 204 and counts nothing', async () => {
+		for (const method of ['GET', 'HEAD']) {
+			const { res, waits } = await run(use('', { origin: ORIGIN }, method));
+			expect(res.status).toBe(204);
+			expect(waits).toBe(0);
+		}
+	});
+
+	it('a dead counter, or none configured, still answers 204', async () => {
+		const c = ctx();
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('down'));
+		try {
+			const res = await worker.fetch(use('{"name":"find-used"}'), env(), c);
+			expect(res.status).toBe(204);
+			await expect(Promise.all(c.waits)).resolves.toBeDefined();
+		} finally {
+			fetchSpy.mockRestore();
+		}
+		const { res, waits } = await run(use('{"name":"find-used"}'), { ...env(), UMAMI_WEBSITE_ID: '' });
+		expect(res.status).toBe(204);
+		expect(waits).toBe(0);
+	});
+
+	it('names only what the app may send, and the plain site has no Worker', () => {
+		expect(USAGE_EVENTS.length).toBeGreaterThan(10);
+		for (const name of USAGE_EVENTS) expect(name).toMatch(/^[a-z]+(-[a-z]+)+$/);
+		expect(new Set(USAGE_EVENTS).size).toBe(USAGE_EVENTS.length);
+		expect(readFileSync('wrangler.lockup.jsonc', 'utf8')).toContain('"/use"');
+		expect(readFileSync('wrangler.jsonc', 'utf8')).not.toContain('"main"');
 	});
 });
